@@ -5,6 +5,7 @@ import App from './App.vue';
 import { routes } from './router.js';
 import zhCN from './i18n/zh-CN.js';
 import en from './i18n/en.js';
+import '@mdi/font/css/materialdesignicons.css';
 import './styles/index.css';
 
 const router = createRouter({

@@ -1,10 +1,15 @@
 <template>
   <div>
     <div class="page-header">
-      <h2>{{ t('history.title') }}</h2>
+      <h2><span class="mdi mdi-history"></span> {{ t('history.title') }}</h2>
     </div>
 
-    <div class="history-layout">
+    <div v-if="channels.length === 0" class="card empty-state">
+      <span class="mdi mdi-chat-sleep-outline empty-icon"></span>
+      <p>{{ t('history.noChannels') }}</p>
+    </div>
+
+    <div v-else class="history-layout">
       <div class="channel-list card">
         <div
           v-for="ch in channels"
@@ -13,10 +18,7 @@
           :class="{ active: selectedChannel === ch }"
           @click="selectChannel(ch)"
         >
-          # {{ ch }}
-        </div>
-        <div v-if="channels.length === 0" style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
-          {{ t('history.noChannels') }}
+          <span class="mdi mdi-pound"></span> {{ ch }}
         </div>
       </div>
 
@@ -39,8 +41,9 @@
             </tr>
           </tbody>
         </table>
-        <div v-else style="padding: 40px; text-align: center; color: var(--text-muted);">
-          {{ t('history.empty') }}
+        <div v-else class="empty-state" style="padding: 40px;">
+          <span class="mdi mdi-message-text-outline" style="font-size: 32px; opacity: 0.5;"></span>
+          <p>{{ t('history.empty') }}</p>
         </div>
       </div>
     </div>
@@ -49,11 +52,11 @@
       <div class="modal" style="max-width: 700px;">
         <div class="modal-header">{{ selected.username }} - {{ new Date(selected.timestamp).toLocaleString() }}</div>
         <div class="form-group">
-          <label class="form-label">{{ t('history.query') }}</label>
+          <label class="form-label"><span class="mdi mdi-comment-question"></span> {{ t('history.query') }}</label>
           <div class="detail-block">{{ selected.query }}</div>
         </div>
         <div class="form-group">
-          <label class="form-label">{{ t('history.response') }}</label>
+          <label class="form-label"><span class="mdi mdi-comment-check"></span> {{ t('history.response') }}</label>
           <div class="detail-block" style="max-height: 400px; overflow-y: auto; white-space: pre-wrap;">{{ selected.response }}</div>
         </div>
         <div class="modal-actions">
@@ -108,6 +111,9 @@ async function selectChannel(channelId: string) {
   font-family: monospace;
   color: var(--text-secondary);
   transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .channel-item:hover {
   background: var(--bg-tertiary);
@@ -125,5 +131,16 @@ async function selectChannel(channelId: string) {
   background: var(--bg-secondary);
   border-radius: var(--radius);
   font-size: 14px;
+}
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.5;
 }
 </style>

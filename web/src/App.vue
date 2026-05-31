@@ -35,15 +35,18 @@
               class="nav-item"
               active-class="active"
             >
+              <span class="mdi" :class="item.icon"></span>
               <span>{{ t(item.label) }}</span>
             </router-link>
           </nav>
           <div class="sidebar-footer">
             <div class="footer-controls">
               <button class="theme-toggle" @click="toggleTheme">
+                <span class="mdi" :class="theme === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night'"></span>
                 <span>{{ theme === 'dark' ? t('theme.light') : t('theme.dark') }}</span>
               </button>
               <button class="lang-toggle" @click="toggleLang">
+                <span class="mdi mdi-translate"></span>
                 <span>{{ locale === 'zh-CN' ? 'EN' : '中' }}</span>
               </button>
             </div>
@@ -131,11 +134,11 @@ function toggleLang() {
 }
 
 const navItems = [
-  { path: '/dashboard', label: 'nav.dashboard' },
-  { path: '/projects', label: 'nav.projects' },
-  { path: '/providers', label: 'nav.providers' },
-  { path: '/discord', label: 'nav.discord' },
-  { path: '/history', label: 'nav.history' },
-  { path: '/settings', label: 'nav.settings' },
+  { path: '/dashboard', label: 'nav.dashboard', icon: 'mdi-view-dashboard' },
+  { path: '/projects', label: 'nav.projects', icon: 'mdi-folder-multiple' },
+  { path: '/providers', label: 'nav.providers', icon: 'mdi-brain' },
+  { path: '/discord', label: 'nav.discord', icon: 'mdi-chat' },
+  { path: '/history', label: 'nav.history', icon: 'mdi-history' },
+  { path: '/settings', label: 'nav.settings', icon: 'mdi-cog' },
 ];
 </script>

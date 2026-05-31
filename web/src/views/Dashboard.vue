@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <h2>{{ t('dashboard.title') }}</h2>
+      <h2><span class="mdi mdi-view-dashboard"></span> {{ t('dashboard.title') }}</h2>
     </div>
     <div class="card-grid">
       <div class="card">
@@ -9,20 +9,25 @@
           <span class="status-dot" :class="status.bot?.online ? 'online' : 'offline'"></span>
           {{ status.bot?.online ? t('dashboard.online') : t('dashboard.offline') }}
         </div>
-        <div class="stat-label">{{ t('dashboard.botStatus') }}</div>
+        <div class="stat-label"><span class="mdi mdi-robot"></span> {{ t('dashboard.botStatus') }}</div>
       </div>
       <div class="card">
         <div class="stat-value">{{ status.bot?.guilds ?? 0 }}</div>
-        <div class="stat-label">{{ t('dashboard.guilds') }}</div>
+        <div class="stat-label"><span class="mdi mdi-server"></span> {{ t('dashboard.guilds') }}</div>
       </div>
       <div class="card">
         <div class="stat-value">{{ status.projects?.total ?? 0 }}</div>
-        <div class="stat-label">{{ t('dashboard.projects') }}</div>
+        <div class="stat-label"><span class="mdi mdi-folder-multiple"></span> {{ t('dashboard.projects') }}</div>
       </div>
       <div class="card">
         <div class="stat-value">{{ status.providers?.total ?? 0 }}</div>
-        <div class="stat-label">{{ t('dashboard.providers') }}</div>
+        <div class="stat-label"><span class="mdi mdi-brain"></span> {{ t('dashboard.providers') }}</div>
       </div>
+    </div>
+
+    <div v-if="!status.bot && !loading" class="card empty-state">
+      <span class="mdi mdi-information-outline empty-icon"></span>
+      <p>{{ t('dashboard.noData') }}</p>
     </div>
   </div>
 </template>
@@ -35,8 +40,24 @@ import { api } from '../api.js';
 const { t } = useI18n();
 
 const status = ref<Record<string, any>>({});
+const loading = ref(true);
 
 onMounted(async () => {
   status.value = await api.get('/status') || {};
+  loading.value = false;
 });
 </script>
+
+<style scoped>
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+</style>

@@ -1,26 +1,32 @@
 <template>
   <div>
     <div class="page-header">
-      <h2>{{ t('discord.title') }}</h2>
+      <h2><span class="mdi mdi-chat"></span> {{ t('discord.title') }}</h2>
     </div>
     <div class="card" style="max-width: 600px;">
       <div class="form-group">
-        <label class="form-label">{{ t('discord.token') }}</label>
+        <label class="form-label"><span class="mdi mdi-key"></span> {{ t('discord.token') }}</label>
         <input class="input" type="password" v-model="form.token" placeholder="Bot token" />
       </div>
       <div class="form-group">
-        <label class="form-label">{{ t('discord.clientId') }}</label>
+        <label class="form-label"><span class="mdi mdi-identifier"></span> {{ t('discord.clientId') }}</label>
         <input class="input" v-model="form.clientId" />
       </div>
       <div class="form-group">
-        <label class="form-label">{{ t('discord.roles') }}</label>
+        <label class="form-label"><span class="mdi mdi-shield-account"></span> {{ t('discord.roles') }}</label>
         <div v-for="(role, i) in form.adminRoles" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
           <input class="input" v-model="form.adminRoles[i]" />
-          <button class="btn btn-danger" @click="form.adminRoles.splice(i, 1)">-</button>
+          <button class="btn btn-danger" @click="form.adminRoles.splice(i, 1)">
+            <span class="mdi mdi-minus"></span>
+          </button>
         </div>
-        <button class="btn" @click="form.adminRoles.push('')">{{ t('discord.addRole') }}</button>
+        <button class="btn" @click="form.adminRoles.push('')">
+          <span class="mdi mdi-plus"></span> {{ t('discord.addRole') }}
+        </button>
       </div>
-      <button class="btn btn-primary" @click="save">{{ t('discord.save') }}</button>
+      <button class="btn btn-primary" @click="save">
+        <span class="mdi mdi-content-save"></span> {{ t('discord.save') }}
+      </button>
     </div>
   </div>
 </template>

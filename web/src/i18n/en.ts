@@ -16,6 +16,7 @@ export default {
     projects: 'Projects',
     providers: 'LLM Providers',
     default: 'Default',
+    noData: 'No data yet. Please complete the basic configuration first.',
   },
   projects: {
     title: 'Project Management',
@@ -41,6 +42,8 @@ export default {
     gitRepo: 'Git Repo',
     url: 'URL',
     noProjects: 'No projects yet. Click the button above to create one.',
+    upload: 'Upload File',
+    selectFile: 'Select File',
   },
   providers: {
     title: 'LLM Provider Management',
@@ -63,7 +66,8 @@ export default {
     save: 'Save',
     cancel: 'Cancel',
     selectModel: 'Select Model',
-    loadingModels: 'Loading models...',
+    loadingModels: 'Loading...',
+    empty: 'No LLM providers yet. Click the button above to add one.',
   },
   discord: {
     title: 'Discord Configuration',

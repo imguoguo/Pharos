@@ -16,6 +16,7 @@ export default {
     projects: '项目数',
     providers: 'LLM 服务商',
     default: '默认',
+    noData: '暂无数据，请先完成基础配置',
   },
   projects: {
     title: '项目管理',
@@ -41,6 +42,8 @@ export default {
     gitRepo: 'Git 仓库',
     url: 'URL',
     noProjects: '暂无项目，点击上方按钮创建',
+    upload: '上传文件',
+    selectFile: '选择文件',
   },
   providers: {
     title: 'LLM 服务管理',
@@ -63,7 +66,8 @@ export default {
     save: '保存',
     cancel: '取消',
     selectModel: '选择模型',
-    loadingModels: '加载模型列表...',
+    loadingModels: '加载中...',
+    empty: '暂无 LLM 服务，点击上方按钮添加',
   },
   discord: {
     title: 'Discord 配置',

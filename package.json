@@ -20,9 +20,12 @@
   "packageManager": "pnpm@9.15.4",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
+    "@mdi/font": "^7.4.47",
+    "@types/multer": "^2.1.0",
     "cors": "^2.8.6",
     "discord.js": "^14.26.4",
     "express": "^5.2.1",
+    "multer": "^2.1.1",
     "openai": "^6.39.1",
     "vue": "^3.5.35",
     "vue-i18n": "^11.4.4",

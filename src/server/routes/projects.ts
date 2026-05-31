@@ -1,8 +1,36 @@
 import { Router } from 'express';
+import { resolve, join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+import multer from 'multer';
 import type { ServerContext } from '../index.js';
 import { saveConfig } from '../../config/index.js';
 import type { Project, KnowledgeSource } from '../../types/config.js';
 import { randomUUID } from 'crypto';
+
+const UPLOADS_DIR = resolve(process.cwd(), 'data', 'uploads');
+
+function ensureUploadsDir(projectId: string): string {
+  const dir = join(UPLOADS_DIR, projectId);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+const storage = multer.diskStorage({
+  destination(_req, _file, cb) {
+    const projectId = _req.params.id;
+    const dir = ensureUploadsDir(projectId);
+    cb(null, dir);
+  },
+  filename(_req, file, cb) {
+    const ext = file.originalname.split('.').pop();
+    cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 export function createProjectsRouter(ctx: ServerContext): Router {
   const router = Router();
@@ -69,6 +97,24 @@ export function createProjectsRouter(ctx: ServerContext): Router {
       path: req.body.path,
       include: req.body.include,
       exclude: req.body.exclude,
+      enabled: true,
+    };
+    project.sources.push(source);
+    project.updatedAt = new Date().toISOString();
+    saveConfig();
+    res.status(201).json(source);
+  });
+
+  router.post('/:id/sources/upload', upload.single('file'), (req, res) => {
+    const project = ctx.config.projects.find((p) => p.id === req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const source: KnowledgeSource = {
+      id: randomUUID(),
+      name: req.body.name || req.file.originalname,
+      type: 'file',
+      path: req.file.path.replace(/\\/g, '/'),
       enabled: true,
     };
     project.sources.push(source);

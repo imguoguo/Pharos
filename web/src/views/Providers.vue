@@ -1,10 +1,18 @@
 <template>
   <div>
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <h2>{{ t('providers.title') }}</h2>
-      <button class="btn btn-primary" @click="showAdd = true">{{ t('providers.add') }}</button>
+      <h2><span class="mdi mdi-brain"></span> {{ t('providers.title') }}</h2>
+      <button class="btn btn-primary" @click="showAdd = true">
+        <span class="mdi mdi-plus"></span> {{ t('providers.add') }}
+      </button>
     </div>
-    <div class="card">
+
+    <div v-if="providers.length === 0" class="card empty-state">
+      <span class="mdi mdi-cloud-off-outline empty-icon"></span>
+      <p>{{ t('providers.empty') }}</p>
+    </div>
+
+    <div v-else class="card">
       <table class="table">
         <thead>
           <tr>
@@ -27,11 +35,18 @@
             <td>
               <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 <button class="btn" @click="testProvider(provider.id)" :disabled="testingId === provider.id">
+                  <span class="mdi mdi-connection"></span>
                   {{ testingId === provider.id ? t('providers.testing') : t('providers.test') }}
                 </button>
-                <button class="btn" @click="editProvider(provider)">{{ t('providers.edit') }}</button>
-                <button class="btn" @click="setDefault(provider.id)" v-if="provider.id !== defaultProvider">{{ t('providers.setDefault') }}</button>
-                <button class="btn btn-danger" @click="deleteProvider(provider.id)">{{ t('providers.delete') }}</button>
+                <button class="btn" @click="editProvider(provider)">
+                  <span class="mdi mdi-pencil"></span>
+                </button>
+                <button class="btn" @click="setDefault(provider.id)" v-if="provider.id !== defaultProvider">
+                  <span class="mdi mdi-star-outline"></span>
+                </button>
+                <button class="btn btn-danger" @click="deleteProvider(provider.id)">
+                  <span class="mdi mdi-delete"></span>
+                </button>
               </div>
             </td>
           </tr>
@@ -67,6 +82,7 @@
           <div style="display: flex; gap: 8px;">
             <input class="input" v-model="form.model" style="flex: 1;" />
             <button class="btn" @click="fetchModels" :disabled="fetchingModels">
+              <span class="mdi mdi-refresh"></span>
               {{ fetchingModels ? t('providers.loadingModels') : t('providers.fetchModels') }}
             </button>
           </div>
@@ -84,15 +100,19 @@
         </div>
         <div class="form-group" style="margin-top: 12px;">
           <button class="btn" @click="testConnection" :disabled="testingConnection">
+            <span class="mdi mdi-lan-connect"></span>
             {{ testingConnection ? t('providers.testing') : t('providers.testConnection') }}
           </button>
           <span v-if="connectionResult" :style="{ color: connectionResult.success ? '#22c55e' : 'var(--accent-red)', marginLeft: '12px', fontSize: '13px' }">
-            {{ connectionResult.success ? t('providers.testSuccess') : t('providers.testFailed') + ': ' + connectionResult.error }}
+            <span class="mdi" :class="connectionResult.success ? 'mdi-check-circle' : 'mdi-alert-circle'"></span>
+            {{ connectionResult.success ? t('providers.testSuccess') : t('providers.testFailed') }}
           </span>
         </div>
         <div class="modal-actions">
           <button class="btn" @click="closeModal">{{ t('providers.cancel') }}</button>
-          <button class="btn btn-primary" @click="saveProvider">{{ t('providers.save') }}</button>
+          <button class="btn btn-primary" @click="saveProvider">
+            <span class="mdi mdi-content-save"></span> {{ t('providers.save') }}
+          </button>
         </div>
       </div>
     </div>
@@ -231,5 +251,16 @@ async function fetchModels() {
 .model-item.active {
   background: var(--bg-tertiary);
   color: var(--accent-blue);
+}
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.5;
 }
 </style>
