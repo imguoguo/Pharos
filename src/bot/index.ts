@@ -157,12 +157,19 @@ export class DiscordBot {
         chunks.push(remaining);
         break;
       }
-      let splitAt = remaining.lastIndexOf('\n', MAX_MESSAGE_LENGTH);
-      if (splitAt === -1 || splitAt < MAX_MESSAGE_LENGTH / 2) {
+      let splitAt = remaining.lastIndexOf('\n\n', MAX_MESSAGE_LENGTH);
+      if (splitAt === -1 || splitAt < 200) {
+        splitAt = remaining.lastIndexOf('\n', MAX_MESSAGE_LENGTH);
+      }
+      if (splitAt === -1 || splitAt < 200) {
+        splitAt = remaining.lastIndexOf('. ', MAX_MESSAGE_LENGTH);
+        if (splitAt !== -1) splitAt += 1;
+      }
+      if (splitAt === -1 || splitAt < 200) {
         splitAt = MAX_MESSAGE_LENGTH;
       }
       chunks.push(remaining.slice(0, splitAt));
-      remaining = remaining.slice(splitAt);
+      remaining = remaining.slice(splitAt).trimStart();
     }
 
     for (let i = 0; i < chunks.length; i++) {
