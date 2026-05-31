@@ -433,7 +433,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.15s ease;
+  animation: fadeIn 0.2s ease;
 }
 
 .modal {
@@ -443,7 +443,7 @@ body {
   padding: 24px;
   width: 100%;
   max-width: 480px;
-  animation: slideUp 0.2s ease;
+  animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .modal-header {
@@ -474,6 +474,11 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 @keyframes slideUp {

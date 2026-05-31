@@ -7,16 +7,18 @@ export function createConfigRouter(ctx: ServerContext): Router {
 
   router.get('/discord', (_req, res) => {
     res.json({
-      clientId: ctx.config.discord.clientId,
+      appId: ctx.config.discord.appId,
+      publicKey: ctx.config.discord.publicKey,
       adminRoles: ctx.config.discord.adminRoles,
       token: ctx.config.discord.token ? '***' : '',
     });
   });
 
   router.put('/discord', (req, res) => {
-    const { token, clientId, adminRoles } = req.body;
+    const { token, appId, publicKey, adminRoles } = req.body;
     if (token && token !== '***') ctx.config.discord.token = token;
-    if (clientId !== undefined) ctx.config.discord.clientId = clientId;
+    if (appId !== undefined) ctx.config.discord.appId = appId;
+    if (publicKey !== undefined) ctx.config.discord.publicKey = publicKey;
     if (adminRoles !== undefined) ctx.config.discord.adminRoles = adminRoles;
     saveConfig();
     res.json({ success: true });

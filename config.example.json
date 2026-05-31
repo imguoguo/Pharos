@@ -1,7 +1,8 @@
 {
   "discord": {
     "token": "",
-    "clientId": "",
+    "appId": "",
+    "publicKey": "",
     "adminRoles": []
   },
   "llm": {

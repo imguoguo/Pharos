@@ -6,16 +6,24 @@
     <div class="card" style="max-width: 600px;">
       <div class="form-group">
         <label class="form-label"><span class="mdi mdi-key"></span> {{ t('discord.token') }}</label>
-        <input class="input" type="password" v-model="form.token" placeholder="Bot token" />
+        <input class="input" type="password" v-model="form.token" placeholder="Bot Token (Reset Token)" />
+        <p class="form-hint">{{ t('discord.tokenHint') }}</p>
       </div>
       <div class="form-group">
-        <label class="form-label"><span class="mdi mdi-identifier"></span> {{ t('discord.clientId') }}</label>
-        <input class="input" v-model="form.clientId" />
+        <label class="form-label"><span class="mdi mdi-identifier"></span> {{ t('discord.appId') }}</label>
+        <input class="input" v-model="form.appId" placeholder="Application ID" />
+        <p class="form-hint">{{ t('discord.appIdHint') }}</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label"><span class="mdi mdi-key-variant"></span> {{ t('discord.publicKey') }}</label>
+        <input class="input" v-model="form.publicKey" placeholder="Public Key" />
+        <p class="form-hint">{{ t('discord.publicKeyHint') }}</p>
       </div>
       <div class="form-group">
         <label class="form-label"><span class="mdi mdi-shield-account"></span> {{ t('discord.roles') }}</label>
+        <p class="form-hint">{{ t('discord.rolesHint') }}</p>
         <div v-for="(role, i) in form.adminRoles" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <input class="input" v-model="form.adminRoles[i]" />
+          <input class="input" v-model="form.adminRoles[i]" placeholder="Role ID (e.g. 123456789012345678)" />
           <button class="btn btn-danger" @click="form.adminRoles.splice(i, 1)">
             <span class="mdi mdi-minus"></span>
           </button>
@@ -41,7 +49,8 @@ const toast = inject<any>('toast');
 
 const form = ref({
   token: '',
-  clientId: '',
+  appId: '',
+  publicKey: '',
   adminRoles: [] as string[],
 });
 
@@ -50,7 +59,8 @@ onMounted(async () => {
   if (data) {
     form.value = {
       token: data.token || '',
-      clientId: data.clientId || '',
+      appId: data.appId || '',
+      publicKey: data.publicKey || '',
       adminRoles: data.adminRoles || [],
     };
   }
@@ -61,3 +71,11 @@ async function save() {
   toast.success(t('common.success'));
 }
 </script>
+
+<style scoped>
+.form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+</style>

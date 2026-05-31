@@ -1,6 +1,7 @@
 export interface DiscordConfig {
   token: string;
-  clientId: string;
+  appId: string;
+  publicKey: string;
   adminRoles: string[];
 }
 
