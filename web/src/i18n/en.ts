@@ -17,6 +17,9 @@ export default {
     providers: 'LLM Providers',
     default: 'Default',
     noData: 'No data yet. Please complete the basic configuration first.',
+    startBot: 'Start Bot',
+    starting: 'Starting...',
+    botStarted: 'Bot started',
   },
   projects: {
     title: 'Project Management',

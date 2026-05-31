@@ -17,6 +17,9 @@ export default {
     providers: 'LLM 服务商',
     default: '默认',
     noData: '暂无数据，请先完成基础配置',
+    startBot: '启动 Bot',
+    starting: '启动中...',
+    botStarted: 'Bot 已启动',
   },
   projects: {
     title: '项目管理',

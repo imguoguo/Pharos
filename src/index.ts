@@ -5,6 +5,9 @@ import { DiscordBot } from './bot/index.js';
 import { startServer } from './server/index.js';
 import { refreshSchedules } from './services/scheduler.js';
 
+// Allow self-signed / corporate proxy certificates
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 async function main() {
   console.log('[Pharos] Starting...');
   appendLog('info', 'Pharos starting');
@@ -29,8 +32,12 @@ async function main() {
   startServer({ config, agent, bot });
 
   if (config.discord.token) {
-    await bot.start();
-    appendLog('info', 'Discord bot started');
+    bot.start().then(() => {
+      appendLog('info', 'Discord bot started');
+    }).catch((err) => {
+      console.error('[Pharos] Bot failed to start:', err.message);
+      appendLog('error', `Bot start failed: ${err.message}`);
+    });
   } else {
     console.log('[Pharos] No Discord token configured, bot not started.');
   }
@@ -45,6 +52,7 @@ async function main() {
 
 main().catch((err) => {
   console.error('[Pharos] Fatal error:', err);
+  console.error('[Pharos] Stack:', err.stack);
   appendLog('error', `Fatal: ${err.message}`);
   process.exit(1);
 });

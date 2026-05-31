@@ -5,15 +5,23 @@ import type { LLMProviderConfig } from '../types/config.js';
 export class AnthropicProvider implements LLMProvider {
   id: string;
   type = 'anthropic';
-  private client: Anthropic;
+  private client: Anthropic | null = null;
   private model: string;
   private maxTokens: number;
+  private apiKey: string;
 
   constructor(config: LLMProviderConfig) {
     this.id = config.id;
     this.model = config.model;
     this.maxTokens = config.maxTokens ?? 4096;
-    this.client = new Anthropic({ apiKey: config.apiKey });
+    this.apiKey = config.apiKey;
+  }
+
+  private getClient(): Anthropic {
+    if (!this.client) {
+      this.client = new Anthropic({ apiKey: this.apiKey });
+    }
+    return this.client;
   }
 
   async chat(messages: Message[], tools?: ToolDefinition[]): Promise<LLMResponse> {
@@ -43,7 +51,7 @@ export class AnthropicProvider implements LLMProvider {
       }));
     }
 
-    const response = await this.client.messages.create(params);
+    const response = await this.getClient().messages.create(params);
 
     const textBlocks = response.content.filter((b) => b.type === 'text');
     const toolBlocks = response.content.filter((b) => b.type === 'tool_use');

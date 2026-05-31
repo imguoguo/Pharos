@@ -10,6 +10,13 @@
           {{ status.bot?.online ? t('dashboard.online') : t('dashboard.offline') }}
         </div>
         <div class="stat-label"><span class="mdi mdi-robot"></span> {{ t('dashboard.botStatus') }}</div>
+        <div v-if="status.bot?.username" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">{{ status.bot.username }}</div>
+        <div v-if="!status.bot?.online" style="margin-top: 12px;">
+          <button class="btn btn-primary" @click="restartBot" :disabled="restarting">
+            <span class="mdi" :class="restarting ? 'mdi-loading mdi-spin' : 'mdi-power'"></span>
+            {{ restarting ? t('dashboard.starting') : t('dashboard.startBot') }}
+          </button>
+        </div>
       </div>
       <div class="card">
         <div class="stat-value">{{ status.bot?.guilds ?? 0 }}</div>
@@ -24,28 +31,39 @@
         <div class="stat-label"><span class="mdi mdi-brain"></span> {{ t('dashboard.providers') }}</div>
       </div>
     </div>
-
-    <div v-if="!status.bot && !loading" class="card empty-state">
-      <span class="mdi mdi-information-outline empty-icon"></span>
-      <p>{{ t('dashboard.noData') }}</p>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
 const { t } = useI18n();
+const toast = inject<any>('toast');
 
 const status = ref<Record<string, any>>({});
 const loading = ref(true);
+const restarting = ref(false);
 
 onMounted(async () => {
   status.value = await api.get('/status') || {};
   loading.value = false;
 });
+
+async function restartBot() {
+  restarting.value = true;
+  const res = await api.post('/bot/restart', {});
+  restarting.value = false;
+  if (res?.success) {
+    toast.success(t('dashboard.botStarted'));
+    setTimeout(async () => {
+      status.value = await api.get('/status') || {};
+    }, 3000);
+  } else {
+    toast.error(res?.error || t('common.error'));
+  }
+}
 </script>
 
 <style scoped>
