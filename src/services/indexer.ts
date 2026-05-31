@@ -4,6 +4,7 @@ import type { AppConfig, KnowledgeSource, Project } from '../types/config.js';
 import { chatWithFallback } from '../llm/index.js';
 import { createAgentTools } from '../agent/tools.js';
 import { appendLog, saveConfig } from '../config/index.js';
+import { pushSourceLog } from './git.js';
 import type { Message } from '../types/llm.js';
 
 const INDEX_FILENAME = '.pharos-index.md';
@@ -67,6 +68,7 @@ Output ONLY the markdown index content, nothing else.${existingContext}`,
       writeIndex(source, indexContent);
       source.lastIndexedAt = new Date().toISOString();
       saveConfig();
+      pushSourceLog(source.id, `Index generated successfully.`);
       appendLog('info', `Index generated for ${project.name}/${source.name}`);
       return indexContent;
     }
@@ -75,6 +77,7 @@ Output ONLY the markdown index content, nothing else.${existingContext}`,
 
     const results: string[] = [];
     for (const call of response.toolCalls) {
+      pushSourceLog(source.id, `[index] ${call.name}(${JSON.stringify(call.arguments).slice(0, 100)})`);
       const tool = tools.find((t) => t.definition.name === call.name);
       if (!tool) {
         results.push(`[Tool ${call.id}]: Unknown tool: ${call.name}`);

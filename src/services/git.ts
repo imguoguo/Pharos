@@ -7,7 +7,7 @@ import { appendLog, getReposDir, saveConfig } from '../config/index.js';
 import { generateIndex } from './indexer.js';
 
 interface SyncProgress {
-  status: 'idle' | 'syncing' | 'success' | 'error';
+  status: 'idle' | 'syncing' | 'success' | 'error' | 'indexing';
   lines: string[];
   error?: string;
   updatedAt: string;
@@ -25,6 +25,10 @@ export function getSyncProgress(sourceId: string): SyncProgress {
     lines: [],
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function pushSourceLog(sourceId: string, message: string): void {
+  pushProgressLines(sourceId, message);
 }
 
 export function createGitSource(projectId: string, source: KnowledgeSource): KnowledgeSource {
@@ -72,7 +76,13 @@ export async function syncGitSource(config: AppConfig, project: Project, source:
     setProgress(source.id, 'success', [`Sync completed at ${now}`]);
     appendLog('info', `Git sync completed: ${project.name}/${source.name}`);
 
-    void generateIndex(config, project, source).catch((err) => {
+    setProgress(source.id, 'indexing', [...getSyncProgress(source.id).lines, 'Sync done. Generating index...']);
+    void generateIndex(config, project, source).then(() => {
+      pushProgressLines(source.id, 'Index generation completed.');
+      setProgress(source.id, 'success', getSyncProgress(source.id).lines);
+    }).catch((err) => {
+      pushProgressLines(source.id, `Index generation failed: ${err}`);
+      setProgress(source.id, 'success', getSyncProgress(source.id).lines);
       appendLog('warn', `Index generation failed for ${source.name}: ${err}`);
     });
   } catch (err) {

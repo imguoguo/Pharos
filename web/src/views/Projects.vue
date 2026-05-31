@@ -465,8 +465,13 @@ function startProgressPoll(projectId: string, sourceId: string) {
   progressTimer = setInterval(async () => {
     const data = await api.get(`/projects/${projectId}/sources/${sourceId}/progress`);
     progressData.value = data;
-    if (data?.progress?.status !== 'syncing') {
-      stopProgressPoll();
+    const status = data?.progress?.status;
+    if (status !== 'syncing' && status !== 'indexing') {
+      // keep modal open, just stop polling
+      if (progressTimer) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+      }
       await loadProjects();
     }
   }, 1500);
