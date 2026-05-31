@@ -1,6 +1,9 @@
 import { Client, GatewayIntentBits, Events, type Message as DiscordMessage } from 'discord.js';
-import type { DiscordConfig } from '../types/config.js';
+import type { DiscordConfig, Project } from '../types/config.js';
 import { AgentExecutor } from '../agent/executor.js';
+import { appendHistory, appendLog } from '../config/index.js';
+import type { ConversationEntry } from '../types/agent.js';
+import { randomUUID } from 'crypto';
 
 const REACTION_PROCESSING = '⏳';
 const REACTION_DONE = '✅';
@@ -11,10 +14,12 @@ export class DiscordBot {
   private client: Client;
   private config: DiscordConfig;
   private agent: AgentExecutor;
+  private projects: Project[];
 
-  constructor(config: DiscordConfig, agent: AgentExecutor) {
+  constructor(config: DiscordConfig, agent: AgentExecutor, projects: Project[]) {
     this.config = config;
     this.agent = agent;
+    this.projects = projects;
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
@@ -25,11 +30,20 @@ export class DiscordBot {
     this.setupEvents();
   }
 
+  updateProjects(projects: Project[]): void {
+    this.projects = projects;
+  }
+
   private setupEvents(): void {
     this.client.on(Events.MessageCreate, (message) => this.handleMessage(message));
     this.client.on(Events.ClientReady, () => {
       console.log(`[Pharos] Bot online as ${this.client.user?.tag}`);
+      appendLog('info', `Bot online as ${this.client.user?.tag}`);
     });
+  }
+
+  private findProjectForChannel(channelId: string): Project | undefined {
+    return this.projects.find((p) => p.channels.includes(channelId));
   }
 
   private async handleMessage(message: DiscordMessage): Promise<void> {
@@ -37,9 +51,8 @@ export class DiscordBot {
     if (!this.client.user) return;
     if (!message.mentions.has(this.client.user)) return;
 
-    if (this.config.allowedChannels.length > 0 && !this.config.allowedChannels.includes(message.channelId)) {
-      return;
-    }
+    const project = this.findProjectForChannel(message.channelId);
+    if (!project) return;
 
     const query = message.content
       .replace(new RegExp(`<@!?${this.client.user.id}>`, 'g'), '')
@@ -48,15 +61,39 @@ export class DiscordBot {
     if (!query) return;
 
     await message.react(REACTION_PROCESSING);
+    const startTime = Date.now();
 
     try {
-      const task = await this.agent.execute(query, message.channelId, message.author.id, message.id);
+      const task = await this.agent.execute(
+        query,
+        message.channelId,
+        message.author.id,
+        message.id,
+        project.id,
+        project.sources.filter((s) => s.enabled),
+      );
 
       await message.reactions.cache.get(REACTION_PROCESSING)?.users.remove(this.client.user.id);
 
       if (task.status === 'completed' && task.result) {
         await this.sendChunked(message, task.result);
         await message.react(REACTION_DONE);
+
+        const entry: ConversationEntry = {
+          id: randomUUID(),
+          channelId: message.channelId,
+          guildId: message.guildId ?? '',
+          userId: message.author.id,
+          username: message.author.username,
+          query,
+          response: task.result,
+          providerId: '',
+          projectId: project.id,
+          tokensUsed: 0,
+          duration: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+        };
+        appendHistory(entry);
       } else {
         await message.reply(task.error ?? 'An error occurred while processing your question.');
         await message.react(REACTION_ERROR);
@@ -65,7 +102,7 @@ export class DiscordBot {
       await message.reactions.cache.get(REACTION_PROCESSING)?.users.remove(this.client.user.id);
       await message.react(REACTION_ERROR);
       await message.reply('Internal error occurred.');
-      console.error('[Pharos] Error handling message:', err);
+      appendLog('error', `Message handling error: ${err}`);
     }
   }
 

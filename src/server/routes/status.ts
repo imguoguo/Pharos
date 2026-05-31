@@ -13,9 +13,8 @@ export function createStatusRouter(ctx: ServerContext): Router {
         maxConcurrency: ctx.config.agent.maxConcurrency,
         sandbox: ctx.config.agent.sandbox.enabled,
       },
-      knowledge: {
-        totalSources: ctx.config.knowledge.sources.length,
-        enabledSources: ctx.config.knowledge.sources.filter((s) => s.enabled).length,
+      projects: {
+        total: ctx.config.projects.length,
       },
       providers: {
         total: ctx.config.llm.providers.length,

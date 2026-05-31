@@ -4,6 +4,7 @@ import { createI18n } from 'vue-i18n';
 import App from './App.vue';
 import { routes } from './router.js';
 import zhCN from './i18n/zh-CN.js';
+import en from './i18n/en.js';
 import './styles/index.css';
 
 const router = createRouter({
@@ -11,12 +12,15 @@ const router = createRouter({
   routes,
 });
 
+const savedLang = localStorage.getItem('pharos-lang') || 'zh-CN';
+
 const i18n = createI18n({
   legacy: false,
-  locale: 'zh-CN',
+  locale: savedLang,
   fallbackLocale: 'zh-CN',
   messages: {
     'zh-CN': zhCN,
+    en,
   },
 });
 

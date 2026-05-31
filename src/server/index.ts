@@ -3,6 +3,7 @@ import cors from 'cors';
 import { resolve } from 'path';
 import type { AppConfig } from '../types/config.js';
 import { createApiRouter } from './routes/index.js';
+import { createAuthMiddleware } from './routes/auth.js';
 import type { AgentExecutor } from '../agent/executor.js';
 import type { DiscordBot } from '../bot/index.js';
 
@@ -17,6 +18,9 @@ export function createServer(ctx: ServerContext): express.Application {
 
   app.use(cors());
   app.use(express.json());
+
+  const { middleware } = createAuthMiddleware(ctx);
+  app.use(middleware);
 
   app.use('/api', createApiRouter(ctx));
 

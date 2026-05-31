@@ -1,0 +1,255 @@
+<template>
+  <div>
+    <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>{{ t('projects.title') }}</h2>
+      <button class="btn btn-primary" @click="showAdd = true">{{ t('projects.add') }}</button>
+    </div>
+
+    <div v-if="projects.length === 0" class="card" style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+      {{ t('projects.noProjects') }}
+    </div>
+
+    <div v-else class="project-list">
+      <div class="card project-card" v-for="project in projects" :key="project.id">
+        <div class="project-header">
+          <div>
+            <h3 class="project-name">{{ project.name }}</h3>
+            <p class="project-desc">{{ project.description }}</p>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn" @click="editProject(project)">{{ t('projects.edit') }}</button>
+            <button class="btn btn-danger" @click="deleteProject(project.id)">{{ t('projects.delete') }}</button>
+          </div>
+        </div>
+
+        <div class="project-section">
+          <div class="section-header">
+            <span class="section-title">{{ t('projects.channels') }}</span>
+            <button class="btn" @click="addChannel(project)">{{ t('projects.addChannel') }}</button>
+          </div>
+          <div class="tag-list">
+            <span class="tag" v-for="(ch, i) in project.channels" :key="i">
+              {{ ch }}
+              <span class="tag-remove" @click="removeChannel(project, i)">x</span>
+            </span>
+            <span v-if="project.channels.length === 0" style="color: var(--text-muted); font-size: 13px;">-</span>
+          </div>
+        </div>
+
+        <div class="project-section">
+          <div class="section-header">
+            <span class="section-title">{{ t('projects.sources') }} ({{ project.sources.length }})</span>
+            <button class="btn" @click="openAddSource(project)">{{ t('projects.addSource') }}</button>
+          </div>
+          <table class="table" v-if="project.sources.length > 0">
+            <thead>
+              <tr>
+                <th>{{ t('projects.sourceName') }}</th>
+                <th>{{ t('projects.sourceType') }}</th>
+                <th>{{ t('projects.sourcePath') }}</th>
+                <th>{{ t('projects.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="source in project.sources" :key="source.id">
+                <td>{{ source.name }}</td>
+                <td><span class="badge badge-blue">{{ source.type }}</span></td>
+                <td style="font-family: monospace; font-size: 13px;">{{ source.path }}</td>
+                <td>
+                  <button class="btn btn-danger" @click="deleteSource(project, source.id)">{{ t('common.delete') }}</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showAdd || editing" class="modal-overlay" @click.self="closeModal">
+      <div class="modal">
+        <div class="modal-header">{{ editing ? t('projects.edit') : t('projects.add') }}</div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.name') }}</label>
+          <input class="input" v-model="form.name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.description') }}</label>
+          <input class="input" v-model="form.description" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="closeModal">{{ t('projects.cancel') }}</button>
+          <button class="btn btn-primary" @click="saveProject">{{ t('projects.save') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="addingSource" class="modal-overlay" @click.self="addingSource = null">
+      <div class="modal">
+        <div class="modal-header">{{ t('projects.addSource') }}</div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.sourceName') }}</label>
+          <input class="input" v-model="sourceForm.name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.sourceType') }}</label>
+          <select class="select" v-model="sourceForm.type">
+            <option value="directory">{{ t('projects.directory') }}</option>
+            <option value="file">{{ t('projects.file') }}</option>
+            <option value="git-repo">{{ t('projects.gitRepo') }}</option>
+            <option value="url">{{ t('projects.url') }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.sourcePath') }}</label>
+          <input class="input" v-model="sourceForm.path" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="addingSource = null">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary" @click="saveSource">{{ t('common.save') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { api } from '../api.js';
+
+const { t } = useI18n();
+
+const projects = ref<any[]>([]);
+const showAdd = ref(false);
+const editing = ref<string | null>(null);
+const form = ref({ name: '', description: '' });
+const addingSource = ref<string | null>(null);
+const sourceForm = ref({ name: '', type: 'directory', path: '' });
+
+onMounted(async () => {
+  await loadProjects();
+});
+
+async function loadProjects() {
+  projects.value = await api.get('/projects') || [];
+}
+
+function editProject(project: any) {
+  editing.value = project.id;
+  form.value = { name: project.name, description: project.description };
+}
+
+function closeModal() {
+  showAdd.value = false;
+  editing.value = null;
+  form.value = { name: '', description: '' };
+}
+
+async function saveProject() {
+  if (editing.value) {
+    await api.put(`/projects/${editing.value}`, form.value);
+  } else {
+    await api.post('/projects', form.value);
+  }
+  await loadProjects();
+  closeModal();
+}
+
+async function deleteProject(id: string) {
+  await api.delete(`/projects/${id}`);
+  await loadProjects();
+}
+
+async function addChannel(project: any) {
+  const channel = prompt('Channel ID:');
+  if (!channel) return;
+  const channels = [...project.channels, channel];
+  await api.put(`/projects/${project.id}`, { channels });
+  await loadProjects();
+}
+
+async function removeChannel(project: any, index: number) {
+  const channels = project.channels.filter((_: any, i: number) => i !== index);
+  await api.put(`/projects/${project.id}`, { channels });
+  await loadProjects();
+}
+
+function openAddSource(project: any) {
+  addingSource.value = project.id;
+  sourceForm.value = { name: '', type: 'directory', path: '' };
+}
+
+async function saveSource() {
+  if (!addingSource.value) return;
+  await api.post(`/projects/${addingSource.value}/sources`, sourceForm.value);
+  addingSource.value = null;
+  await loadProjects();
+}
+
+async function deleteSource(project: any, sourceId: string) {
+  await api.delete(`/projects/${project.id}/sources/${sourceId}`);
+  await loadProjects();
+}
+</script>
+
+<style scoped>
+.project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.project-card {
+  padding: 24px;
+}
+.project-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+.project-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.project-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.project-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.section-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: monospace;
+}
+.tag-remove {
+  cursor: pointer;
+  color: var(--accent-red);
+  font-weight: bold;
+}
+</style>

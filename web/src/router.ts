@@ -10,8 +10,8 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('./views/Dashboard.vue'),
   },
   {
-    path: '/knowledge',
-    component: () => import('./views/Knowledge.vue'),
+    path: '/projects',
+    component: () => import('./views/Projects.vue'),
   },
   {
     path: '/providers',
@@ -24,5 +24,9 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/history',
     component: () => import('./views/History.vue'),
+  },
+  {
+    path: '/settings',
+    component: () => import('./views/Settings.vue'),
   },
 ];

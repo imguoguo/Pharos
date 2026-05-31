@@ -16,11 +16,8 @@
         <div class="stat-label">{{ t('dashboard.guilds') }}</div>
       </div>
       <div class="card">
-        <div class="stat-value">
-          {{ status.knowledge?.enabledSources ?? 0 }}
-          <span style="font-size: 14px; color: var(--text-muted)">/ {{ status.knowledge?.totalSources ?? 0 }}</span>
-        </div>
-        <div class="stat-label">{{ t('dashboard.sources') }}</div>
+        <div class="stat-value">{{ status.projects?.total ?? 0 }}</div>
+        <div class="stat-label">{{ t('dashboard.projects') }}</div>
       </div>
       <div class="card">
         <div class="stat-value">{{ status.providers?.total ?? 0 }}</div>
@@ -40,6 +37,6 @@ const { t } = useI18n();
 const status = ref<Record<string, any>>({});
 
 onMounted(async () => {
-  status.value = await api.get('/status');
+  status.value = await api.get('/status') || {};
 });
 </script>

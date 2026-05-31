@@ -13,14 +13,6 @@
         <input class="input" v-model="form.clientId" />
       </div>
       <div class="form-group">
-        <label class="form-label">{{ t('discord.channels') }}</label>
-        <div v-for="(ch, i) in form.allowedChannels" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <input class="input" v-model="form.allowedChannels[i]" />
-          <button class="btn btn-danger" @click="form.allowedChannels.splice(i, 1)">-</button>
-        </div>
-        <button class="btn" @click="form.allowedChannels.push('')">{{ t('discord.addChannel') }}</button>
-      </div>
-      <div class="form-group">
         <label class="form-label">{{ t('discord.roles') }}</label>
         <div v-for="(role, i) in form.adminRoles" :key="i" style="display: flex; gap: 8px; margin-bottom: 8px;">
           <input class="input" v-model="form.adminRoles[i]" />
@@ -43,22 +35,21 @@ const { t } = useI18n();
 const form = ref({
   token: '',
   clientId: '',
-  allowedChannels: [] as string[],
   adminRoles: [] as string[],
 });
 
 onMounted(async () => {
   const data = await api.get('/config/discord');
-  form.value = {
-    token: data.token || '',
-    clientId: data.clientId || '',
-    allowedChannels: data.allowedChannels || [],
-    adminRoles: data.adminRoles || [],
-  };
+  if (data) {
+    form.value = {
+      token: data.token || '',
+      clientId: data.clientId || '',
+      adminRoles: data.adminRoles || [],
+    };
+  }
 });
 
 async function save() {
   await api.put('/config/discord', form.value);
-  await api.post('/config/save', {});
 }
 </script>

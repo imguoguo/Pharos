@@ -1,7 +1,6 @@
 export interface DiscordConfig {
   token: string;
   clientId: string;
-  allowedChannels: string[];
   adminRoles: string[];
 }
 
@@ -24,15 +23,21 @@ export interface LLMConfig {
 export interface KnowledgeSource {
   id: string;
   name: string;
-  type: 'directory' | 'file' | 'git-repo';
+  type: 'directory' | 'file' | 'git-repo' | 'url';
   path: string;
   include?: string[];
   exclude?: string[];
   enabled: boolean;
 }
 
-export interface KnowledgeConfig {
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
   sources: KnowledgeSource[];
+  channels: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SandboxConfig {
@@ -51,10 +56,16 @@ export interface ServerConfig {
   host: string;
 }
 
+export interface AuthConfig {
+  password: string;
+  tokenExpiry: number;
+}
+
 export interface AppConfig {
   discord: DiscordConfig;
   llm: LLMConfig;
-  knowledge: KnowledgeConfig;
+  projects: Project[];
   agent: AgentConfig;
   server: ServerConfig;
+  auth: AuthConfig;
 }

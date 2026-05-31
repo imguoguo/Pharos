@@ -11,6 +11,7 @@
             <th>{{ t('providers.name') }}</th>
             <th>{{ t('providers.type') }}</th>
             <th>{{ t('providers.model') }}</th>
+            <th>{{ t('providers.baseUrl') }}</th>
             <th>{{ t('providers.actions') }}</th>
           </tr>
         </thead>
@@ -22,13 +23,16 @@
             </td>
             <td><span class="badge badge-blue">{{ provider.type }}</span></td>
             <td style="font-family: monospace; font-size: 13px;">{{ provider.model }}</td>
-            <td style="display: flex; gap: 6px;">
-              <button class="btn" @click="testProvider(provider.id)">
-                {{ testingId === provider.id ? t('providers.testing') : t('providers.test') }}
-              </button>
-              <button class="btn" @click="editProvider(provider)">{{ t('providers.edit') }}</button>
-              <button class="btn" @click="setDefault(provider.id)" v-if="provider.id !== defaultProvider">{{ t('providers.setDefault') }}</button>
-              <button class="btn btn-danger" @click="deleteProvider(provider.id)">{{ t('providers.delete') }}</button>
+            <td style="font-family: monospace; font-size: 12px; color: var(--text-secondary);">{{ provider.baseUrl || '-' }}</td>
+            <td>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn" @click="testProvider(provider.id)" :disabled="testingId === provider.id">
+                  {{ testingId === provider.id ? t('providers.testing') : t('providers.test') }}
+                </button>
+                <button class="btn" @click="editProvider(provider)">{{ t('providers.edit') }}</button>
+                <button class="btn" @click="setDefault(provider.id)" v-if="provider.id !== defaultProvider">{{ t('providers.setDefault') }}</button>
+                <button class="btn btn-danger" @click="deleteProvider(provider.id)">{{ t('providers.delete') }}</button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -36,7 +40,7 @@
     </div>
 
     <div v-if="showAdd || editing" class="modal-overlay" @click.self="closeModal">
-      <div class="modal">
+      <div class="modal" style="max-width: 520px;">
         <div class="modal-header">{{ editing ? t('providers.edit') : t('providers.add') }}</div>
         <div class="form-group">
           <label class="form-label">{{ t('providers.name') }}</label>
@@ -51,16 +55,40 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">API Key</label>
+          <label class="form-label">{{ t('providers.apiKey') }}</label>
           <input class="input" type="password" v-model="form.apiKey" />
         </div>
-        <div class="form-group" v-if="form.type !== 'anthropic'">
-          <label class="form-label">Base URL</label>
-          <input class="input" v-model="form.baseUrl" placeholder="https://api.openai.com/v1" />
+        <div class="form-group">
+          <label class="form-label">{{ t('providers.baseUrl') }}</label>
+          <input class="input" v-model="form.baseUrl" :placeholder="form.type === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com/v1'" />
         </div>
         <div class="form-group">
           <label class="form-label">{{ t('providers.model') }}</label>
-          <input class="input" v-model="form.model" />
+          <div style="display: flex; gap: 8px;">
+            <input class="input" v-model="form.model" style="flex: 1;" />
+            <button class="btn" @click="fetchModels" :disabled="fetchingModels">
+              {{ fetchingModels ? t('providers.loadingModels') : t('providers.fetchModels') }}
+            </button>
+          </div>
+          <div v-if="availableModels.length > 0" class="model-list">
+            <div
+              v-for="model in availableModels"
+              :key="model"
+              class="model-item"
+              :class="{ active: form.model === model }"
+              @click="form.model = model"
+            >
+              {{ model }}
+            </div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top: 12px;">
+          <button class="btn" @click="testConnection" :disabled="testingConnection">
+            {{ testingConnection ? t('providers.testing') : t('providers.testConnection') }}
+          </button>
+          <span v-if="connectionResult" :style="{ color: connectionResult.success ? '#22c55e' : 'var(--accent-red)', marginLeft: '12px', fontSize: '13px' }">
+            {{ connectionResult.success ? t('providers.testSuccess') : t('providers.testFailed') + ': ' + connectionResult.error }}
+          </span>
         </div>
         <div class="modal-actions">
           <button class="btn" @click="closeModal">{{ t('providers.cancel') }}</button>
@@ -83,6 +111,10 @@ const defaultProvider = ref('');
 const showAdd = ref(false);
 const editing = ref<string | null>(null);
 const testingId = ref<string | null>(null);
+const testingConnection = ref(false);
+const fetchingModels = ref(false);
+const availableModels = ref<string[]>([]);
+const connectionResult = ref<{ success: boolean; error?: string } | null>(null);
 const form = ref({ name: '', type: 'anthropic', apiKey: '', baseUrl: '', model: '' });
 
 onMounted(async () => {
@@ -91,19 +123,23 @@ onMounted(async () => {
 
 async function loadProviders() {
   const data = await api.get('/providers');
-  providers.value = data.providers;
-  defaultProvider.value = data.defaultProvider;
+  providers.value = data?.providers || [];
+  defaultProvider.value = data?.defaultProvider || '';
 }
 
 function editProvider(provider: any) {
   editing.value = provider.id;
   form.value = { name: provider.name, type: provider.type, apiKey: '', baseUrl: provider.baseUrl || '', model: provider.model };
+  availableModels.value = [];
+  connectionResult.value = null;
 }
 
 function closeModal() {
   showAdd.value = false;
   editing.value = null;
   form.value = { name: '', type: 'anthropic', apiKey: '', baseUrl: '', model: '' };
+  availableModels.value = [];
+  connectionResult.value = null;
 }
 
 async function saveProvider() {
@@ -132,10 +168,61 @@ async function testProvider(id: string) {
   testingId.value = id;
   const result = await api.post(`/providers/${id}/test`, {});
   testingId.value = null;
-  if (result.success) {
+  if (result?.success) {
     alert(t('providers.testSuccess'));
   } else {
-    alert(`${t('providers.testFailed')}: ${result.error}`);
+    alert(`${t('providers.testFailed')}: ${result?.error}`);
   }
 }
+
+async function testConnection() {
+  testingConnection.value = true;
+  connectionResult.value = null;
+  const result = await api.post('/providers/test-connection', {
+    type: form.value.type,
+    apiKey: form.value.apiKey,
+    baseUrl: form.value.baseUrl,
+  });
+  testingConnection.value = false;
+  connectionResult.value = result;
+}
+
+async function fetchModels() {
+  fetchingModels.value = true;
+  const result = await api.post('/providers/models', {
+    type: form.value.type,
+    apiKey: form.value.apiKey,
+    baseUrl: form.value.baseUrl,
+  });
+  fetchingModels.value = false;
+  availableModels.value = result?.models || [];
+}
 </script>
+
+<style scoped>
+.model-list {
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.model-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: monospace;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.model-item:last-child {
+  border-bottom: none;
+}
+.model-item:hover {
+  background: var(--bg-tertiary);
+}
+.model-item.active {
+  background: var(--bg-tertiary);
+  color: var(--accent-blue);
+}
+</style>
