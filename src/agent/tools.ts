@@ -13,6 +13,20 @@ function isPathAllowed(targetPath: string, allowedRoots: string[]): boolean {
   return allowedRoots.some((root) => resolved.startsWith(resolve(root)));
 }
 
+function resolvePath(inputPath: string, allowedRoots: string[]): string {
+  const abs = resolve(inputPath);
+  if (allowedRoots.some((root) => abs.startsWith(resolve(root)))) {
+    return abs;
+  }
+  for (const root of allowedRoots) {
+    const candidate = resolve(root, inputPath);
+    if (candidate.startsWith(resolve(root))) {
+      return candidate;
+    }
+  }
+  return abs;
+}
+
 export function createAgentTools(sources: KnowledgeSource[]): AgentTool[] {
   const allowedRoots = sources.filter((s) => s.enabled).map((s) => resolve(s.path));
 
@@ -29,7 +43,7 @@ export function createAgentTools(sources: KnowledgeSource[]): AgentTool[] {
       },
     },
     async execute(args) {
-      const filePath = resolve(args.path as string);
+      const filePath = resolvePath(args.path as string, allowedRoots);
       if (!isPathAllowed(filePath, allowedRoots)) {
         return 'Error: path is outside allowed knowledge sources';
       }
@@ -54,7 +68,7 @@ export function createAgentTools(sources: KnowledgeSource[]): AgentTool[] {
       },
     },
     async execute(args) {
-      const dirPath = resolve(args.path as string);
+      const dirPath = resolvePath(args.path as string, allowedRoots);
       if (!isPathAllowed(dirPath, allowedRoots)) {
         return 'Error: path is outside allowed knowledge sources';
       }
@@ -79,7 +93,7 @@ export function createAgentTools(sources: KnowledgeSource[]): AgentTool[] {
       },
     },
     async execute(args) {
-      const root = args.root ? resolve(args.root as string) : allowedRoots[0];
+      const root = args.root ? resolvePath(args.root as string, allowedRoots) : allowedRoots[0];
       if (!isPathAllowed(root, allowedRoots)) {
         return 'Error: path is outside allowed knowledge sources';
       }
@@ -120,7 +134,7 @@ export function createAgentTools(sources: KnowledgeSource[]): AgentTool[] {
       },
     },
     async execute(args) {
-      const searchPath = resolve(args.path as string);
+      const searchPath = resolvePath(args.path as string, allowedRoots);
       if (!isPathAllowed(searchPath, allowedRoots)) {
         return 'Error: path is outside allowed knowledge sources';
       }
