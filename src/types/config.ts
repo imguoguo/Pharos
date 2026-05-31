@@ -61,6 +61,7 @@ export type ProgressVerbosity = 'silent' | 'progress' | 'detailed';
 export interface AgentConfig {
   timeout: number;
   maxConcurrency: number;
+  maxIterations: number;
   sandbox: SandboxConfig;
   progressVerbosity: ProgressVerbosity;
 }

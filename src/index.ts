@@ -17,6 +17,7 @@ async function main() {
   const agent = new AgentExecutor({
     timeout: config.agent.timeout,
     maxConcurrency: config.agent.maxConcurrency,
+    maxIterations: config.agent.maxIterations || 20,
   });
 
   const bot = new DiscordBot(config.discord, agent, config.projects, config);

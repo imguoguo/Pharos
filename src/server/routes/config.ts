@@ -25,9 +25,10 @@ export function createConfigRouter(ctx: ServerContext): Router {
   });
 
   router.put('/agent', (req, res) => {
-    const { timeout, maxConcurrency, sandbox, progressVerbosity } = req.body;
+    const { timeout, maxConcurrency, sandbox, progressVerbosity, maxIterations } = req.body;
     if (timeout !== undefined) ctx.config.agent.timeout = timeout;
     if (maxConcurrency !== undefined) ctx.config.agent.maxConcurrency = maxConcurrency;
+    if (maxIterations !== undefined) ctx.config.agent.maxIterations = maxIterations;
     if (sandbox !== undefined) ctx.config.agent.sandbox = { ...ctx.config.agent.sandbox, ...sandbox };
     if (progressVerbosity !== undefined) ctx.config.agent.progressVerbosity = progressVerbosity;
     saveConfig();

@@ -12,6 +12,7 @@ export function createStatusRouter(ctx: ServerContext): Router {
       agent: {
         timeout: ctx.config.agent.timeout,
         maxConcurrency: ctx.config.agent.maxConcurrency,
+        maxIterations: ctx.config.agent.maxIterations || 20,
         sandbox: ctx.config.agent.sandbox.enabled,
         progressVerbosity: ctx.config.agent.progressVerbosity || 'progress',
       },

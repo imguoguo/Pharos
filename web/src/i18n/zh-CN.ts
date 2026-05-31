@@ -124,6 +124,8 @@ export default {
     agent: 'Agent 配置',
     timeout: '超时时间 (ms)',
     maxConcurrency: '最大并发',
+    maxIterations: '最大探索轮次',
+    maxIterationsHint: 'Agent 每次回答最多执行的工具调用轮次（默认 20）',
     sandbox: '沙箱模式',
     progressVerbosity: '进度显示详细程度',
     verbositySilent: '静默（仅等待结果）',

@@ -27,6 +27,11 @@
           <input class="input" type="number" v-model.number="agentForm.maxConcurrency" />
         </div>
         <div class="form-group">
+          <label class="form-label">{{ t('settings.maxIterations') }}</label>
+          <input class="input" type="number" v-model.number="agentForm.maxIterations" min="1" max="50" />
+          <p class="form-hint">{{ t('settings.maxIterationsHint') }}</p>
+        </div>
+        <div class="form-group">
           <label class="form-label">{{ t('settings.progressVerbosity') }}</label>
           <select class="select" v-model="agentForm.progressVerbosity">
             <option value="silent">{{ t('settings.verbositySilent') }}</option>
@@ -52,7 +57,7 @@ const { t } = useI18n();
 const toast = inject<any>('toast');
 
 const newPassword = ref('');
-const agentForm = ref({ timeout: 60000, maxConcurrency: 3, progressVerbosity: 'progress' });
+const agentForm = ref({ timeout: 120000, maxConcurrency: 3, maxIterations: 20, progressVerbosity: 'progress' });
 
 onMounted(async () => {
   const status = await api.get('/status');
@@ -60,6 +65,7 @@ onMounted(async () => {
     agentForm.value = {
       timeout: status.agent.timeout,
       maxConcurrency: status.agent.maxConcurrency,
+      maxIterations: status.agent.maxIterations || 20,
       progressVerbosity: status.agent.progressVerbosity || 'progress',
     };
   }
@@ -76,6 +82,7 @@ async function saveAgent() {
   await api.put('/config/agent', {
     timeout: agentForm.value.timeout,
     maxConcurrency: agentForm.value.maxConcurrency,
+    maxIterations: agentForm.value.maxIterations,
     progressVerbosity: agentForm.value.progressVerbosity,
   });
   toast.success(t('common.success'));

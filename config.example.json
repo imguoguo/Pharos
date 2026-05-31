@@ -11,8 +11,9 @@
   },
   "projects": [],
   "agent": {
-    "timeout": 60000,
+    "timeout": 120000,
     "maxConcurrency": 3,
+    "maxIterations": 20,
     "sandbox": {
       "enabled": true,
       "workDir": "/tmp/pharos-sandbox"

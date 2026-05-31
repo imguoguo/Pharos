@@ -11,11 +11,13 @@ export type StepCallback = (step: AgentStep) => void;
 interface AgentExecutorOptions {
   timeout: number;
   maxConcurrency: number;
+  maxIterations: number;
 }
 
 export class AgentExecutor {
   private timeout: number;
   private maxConcurrency: number;
+  private maxIterations: number;
   private running = 0;
   private queue: Array<{
     task: AgentTask;
@@ -27,6 +29,7 @@ export class AgentExecutor {
   constructor(options: AgentExecutorOptions) {
     this.timeout = options.timeout;
     this.maxConcurrency = options.maxConcurrency;
+    this.maxIterations = options.maxIterations || 20;
   }
 
   async execute(
@@ -90,9 +93,8 @@ export class AgentExecutor {
 
     const toolDefs = tools.map((t) => t.definition);
     const startTime = Date.now();
-    const maxIterations = 10;
 
-    for (let i = 0; i < maxIterations; i++) {
+    for (let i = 0; i < this.maxIterations; i++) {
       if (Date.now() - startTime > this.timeout) {
         return 'The query timed out. Here is what I found so far based on my exploration.';
       }

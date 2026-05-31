@@ -124,6 +124,8 @@ export default {
     agent: 'Agent Configuration',
     timeout: 'Timeout (ms)',
     maxConcurrency: 'Max Concurrency',
+    maxIterations: 'Max Exploration Rounds',
+    maxIterationsHint: 'Max tool call rounds per query (default 20)',
     sandbox: 'Sandbox Mode',
     progressVerbosity: 'Progress Verbosity',
     verbositySilent: 'Silent (wait for result only)',
