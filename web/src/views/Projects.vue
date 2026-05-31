@@ -84,6 +84,12 @@
                     <button v-if="source.type === 'git-repo'" class="btn" @click="openProgress(project, source)" :title="t('projects.progress')">
                       <span class="mdi mdi-console"></span>
                     </button>
+                    <button class="btn" @click="openIndex(project, source)" :title="t('projects.viewIndex')">
+                      <span class="mdi mdi-file-document-outline"></span>
+                    </button>
+                    <button class="btn" @click="reindex(project, source)" :title="t('projects.reindex')">
+                      <span class="mdi mdi-brain"></span>
+                    </button>
                     <button class="btn btn-danger" @click="deleteSource(project, source.id)">
                       <span class="mdi mdi-delete"></span>
                     </button>
@@ -233,6 +239,25 @@
         </div>
       </div>
     </div>
+
+    <!-- Index modal -->
+    <div v-if="indexData" class="modal-overlay" @click.self="indexData = null">
+      <div class="modal" style="max-width: 800px;">
+        <div class="modal-header">
+          <span class="mdi mdi-file-document-outline"></span> {{ t('projects.sourceIndex') }}
+          <span v-if="indexData.lastIndexedAt" style="font-size: 12px; color: var(--text-muted); margin-left: 12px;">{{ t('projects.lastIndexed') }}: {{ new Date(indexData.lastIndexedAt).toLocaleString() }}</span>
+        </div>
+        <div class="form-group">
+          <textarea class="input index-editor" v-model="indexData.content" rows="20"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="indexData = null">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary" @click="saveIndex">
+            <span class="mdi mdi-content-save"></span> {{ t('common.save') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -259,6 +284,9 @@ const keepStructure = ref(true);
 const addingGit = ref<string | null>(null);
 const gitForm = ref({ name: '', remoteUrl: '', branch: 'main', syncIntervalMinutes: 0 });
 const progressData = ref<any>(null);
+const indexData = ref<any>(null);
+let indexProjectId = '';
+let indexSourceId = '';
 let progressTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
@@ -460,6 +488,25 @@ function stopProgressPoll() {
   }
   progressData.value = null;
 }
+
+async function openIndex(project: any, source: any) {
+  indexProjectId = project.id;
+  indexSourceId = source.id;
+  const data = await api.get(`/projects/${project.id}/sources/${source.id}/index`);
+  indexData.value = data || { content: '', lastIndexedAt: null };
+}
+
+async function saveIndex() {
+  if (!indexProjectId || !indexSourceId) return;
+  await api.put(`/projects/${indexProjectId}/sources/${indexSourceId}/index`, { content: indexData.value.content });
+  indexData.value = null;
+  toast.success(t('common.success'));
+}
+
+async function reindex(project: any, source: any) {
+  await api.post(`/projects/${project.id}/sources/${source.id}/reindex`, {});
+  toast.success(t('projects.reindexStarted'));
+}
 </script>
 
 <style scoped>
@@ -560,5 +607,22 @@ function stopProgressPoll() {
 .mdi-spin {
   display: inline-block;
   animation: mdi-spin 1s linear infinite;
+}
+.index-editor {
+  width: 100%;
+  min-height: 400px;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.index-editor:focus {
+  outline: none;
+  border-color: var(--accent-blue);
 }
 </style>

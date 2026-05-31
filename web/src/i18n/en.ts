@@ -64,6 +64,11 @@ export default {
     syncError: 'Sync failed',
     syncIdle: 'Not synced',
     progress: 'Progress',
+    viewIndex: 'View Index',
+    reindex: 'Generate Index',
+    reindexStarted: 'Index generation started',
+    sourceIndex: 'Source Index',
+    lastIndexed: 'Last indexed',
   },
   providers: {
     title: 'LLM Provider Management',

@@ -64,6 +64,11 @@ export default {
     syncError: '同步失败',
     syncIdle: '未同步',
     progress: '进度',
+    viewIndex: '查看索引',
+    reindex: '生成索引',
+    reindexStarted: '索引生成已启动',
+    sourceIndex: '信息源索引',
+    lastIndexed: '上次索引',
   },
   providers: {
     title: 'LLM 服务管理',
