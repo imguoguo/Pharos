@@ -1,11 +1,7 @@
 import { readdir, readFile, stat } from 'fs/promises';
 import { resolve, relative, join } from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import type { KnowledgeSource } from '../types/config.js';
 import type { ToolDefinition } from '../types/llm.js';
-
-const execFileAsync = promisify(execFile);
 
 export interface AgentTool {
   definition: ToolDefinition;
@@ -170,45 +166,7 @@ export function createAgentTools(sources: KnowledgeSource[]): AgentTool[] {
     },
   };
 
-  const execCommandTool: AgentTool = {
-    definition: {
-      name: 'exec_command',
-      description: 'Execute a shell command in the sandbox (read-only operations, tests, builds)',
-      parameters: {
-        type: 'object',
-        properties: {
-          command: { type: 'string', description: 'Command to execute' },
-          cwd: { type: 'string', description: 'Working directory (optional)' },
-        },
-        required: ['command'],
-      },
-    },
-    async execute(args) {
-      const cwd = args.cwd ? resolve(args.cwd as string) : allowedRoots[0];
-      if (!isPathAllowed(cwd, allowedRoots)) {
-        return 'Error: working directory is outside allowed knowledge sources';
-      }
-      const blocked = ['rm -rf', 'rmdir', 'del ', 'format ', 'mkfs'];
-      const cmd = args.command as string;
-      if (blocked.some((b) => cmd.toLowerCase().includes(b))) {
-        return 'Error: destructive commands are not allowed';
-      }
-      try {
-        const { stdout, stderr } = await execFileAsync('bash', ['-c', cmd], {
-          cwd,
-          timeout: 30000,
-          maxBuffer: 1024 * 1024,
-        });
-        const output = (stdout + (stderr ? `\n[stderr]: ${stderr}` : '')).trim();
-        return output.slice(0, 8000) || '(no output)';
-      } catch (err: unknown) {
-        const error = err as { message: string };
-        return `Error: ${error.message}`.slice(0, 2000);
-      }
-    },
-  };
-
-  return [readFileTool, listDirTool, searchFilesTool, grepTool, execCommandTool];
+  return [readFileTool, listDirTool, searchFilesTool, grepTool];
 }
 
 function matchGlob(path: string, pattern: string): boolean {
