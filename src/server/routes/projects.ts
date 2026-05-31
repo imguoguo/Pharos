@@ -18,14 +18,19 @@ function ensureUploadsDir(projectId: string): string {
 }
 
 const storage = multer.diskStorage({
-  destination(_req, _file, cb) {
-    const projectId = _req.params.id;
-    const dir = ensureUploadsDir(projectId);
-    cb(null, dir);
+  destination(req, file, cb) {
+    const projectId = req.params.id;
+    const keepStructure = req.query.keepStructure !== 'false';
+    const relPath = (file as any).webkitRelativePath || file.originalname;
+    const relDir = keepStructure
+      ? join(UPLOADS_DIR, projectId, relPath.split('/').slice(0, -1).join('/'))
+      : join(UPLOADS_DIR, projectId);
+    mkdirSync(relDir, { recursive: true });
+    cb(null, relDir);
   },
   filename(_req, file, cb) {
-    const ext = file.originalname.split('.').pop();
-    cb(null, `${Date.now()}-${randomUUID().slice(0, 8)}.${ext}`);
+    const relPath = (file as any).webkitRelativePath || file.originalname;
+    cb(null, relPath.split('/').pop() || file.originalname);
   },
 });
 
@@ -131,22 +136,29 @@ export function createProjectsRouter(ctx: ServerContext): Router {
     res.status(202).json(source);
   });
 
-  router.post('/:id/sources/upload', upload.single('file'), (req, res) => {
+  router.post('/:id/sources/upload', upload.array('files', 500), (req, res) => {
     const project = ctx.config.projects.find((p) => p.id === req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const files = req.files as Express.Multer.File[];
+    if (!files?.length) return res.status(400).json({ error: 'No files uploaded' });
+
+    const keepStructure = req.query.keepStructure !== 'false';
+    const folderName = req.body.name || files[0].originalname.split('/')[0] || 'upload';
+    const basePath = keepStructure
+      ? join(UPLOADS_DIR, req.params.id).replace(/\\/g, '/')
+      : join(UPLOADS_DIR, req.params.id).replace(/\\/g, '/');
 
     const source: KnowledgeSource = {
       id: randomUUID(),
-      name: req.body.name || req.file.originalname,
-      type: 'file',
-      path: req.file.path.replace(/\\/g, '/'),
+      name: folderName,
+      type: 'directory',
+      path: basePath,
       enabled: true,
     };
     project.sources.push(source);
     project.updatedAt = new Date().toISOString();
     saveConfig();
-    res.status(201).json(source);
+    res.status(201).json({ source, fileCount: files.length });
   });
 
   router.get('/:id/sources/:sourceId/progress', (req, res) => {

@@ -160,19 +160,25 @@
     <!-- Upload modal -->
     <div v-if="uploading" class="modal-overlay" @click.self="uploading = null">
       <div class="modal">
-        <div class="modal-header"><span class="mdi mdi-upload"></span> {{ t('projects.upload') }}</div>
+        <div class="modal-header"><span class="mdi mdi-folder-upload"></span> {{ t('projects.uploadFolder') }}</div>
         <div class="form-group">
           <label class="form-label">{{ t('projects.sourceName') }}</label>
-          <input class="input" v-model="uploadName" />
+          <input class="input" v-model="uploadName" :placeholder="t('projects.uploadNameHint')" />
         </div>
         <div class="form-group">
-          <label class="form-label">{{ t('projects.selectFile') }}</label>
-          <input type="file" @change="onFileSelect" class="input" />
+          <label class="form-label">{{ t('projects.selectFolder') }}</label>
+          <input ref="folderInput" type="file" webkitdirectory multiple @change="onFolderSelect" class="input" />
+          <p v-if="uploadFiles.length > 0" class="form-hint">{{ uploadFiles.length }} {{ t('projects.filesSelected') }}</p>
+        </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="keep-structure" v-model="keepStructure" />
+          <label for="keep-structure" style="font-size: 14px;">{{ t('projects.keepStructure') }}</label>
         </div>
         <div class="modal-actions">
           <button class="btn" @click="uploading = null">{{ t('common.cancel') }}</button>
-          <button class="btn btn-primary" @click="doUpload" :disabled="!uploadFile">
-            <span class="mdi mdi-upload"></span> {{ t('projects.upload') }}
+          <button class="btn btn-primary" @click="doUpload" :disabled="!uploadFiles.length || uploading === 'loading'">
+            <span class="mdi" :class="uploading === 'loading' ? 'mdi-loading mdi-spin' : 'mdi-upload'"></span>
+            {{ uploading === 'loading' ? t('common.loading') : t('projects.upload') }}
           </button>
         </div>
       </div>
@@ -248,7 +254,8 @@ const addingChannel = ref<string | null>(null);
 const channelInput = ref('');
 const uploading = ref<string | null>(null);
 const uploadName = ref('');
-const uploadFile = ref<File | null>(null);
+const uploadFiles = ref<File[]>([]);
+const keepStructure = ref(true);
 const addingGit = ref<string | null>(null);
 const gitForm = ref({ name: '', remoteUrl: '', branch: 'main', syncIntervalMinutes: 0 });
 const progressData = ref<any>(null);
@@ -357,24 +364,34 @@ async function deleteSource(project: any, sourceId: string) {
 function openUpload(project: any) {
   uploading.value = project.id;
   uploadName.value = '';
-  uploadFile.value = null;
+  uploadFiles.value = [];
+  keepStructure.value = true;
 }
 
-function onFileSelect(e: Event) {
+function onFolderSelect(e: Event) {
   const input = e.target as HTMLInputElement;
   if (input.files?.length) {
-    uploadFile.value = input.files[0];
-    if (!uploadName.value) uploadName.value = input.files[0].name;
+    uploadFiles.value = Array.from(input.files);
+    if (!uploadName.value) {
+      const firstPath = (input.files[0] as any).webkitRelativePath as string;
+      uploadName.value = firstPath ? firstPath.split('/')[0] : input.files[0].name;
+    }
   }
 }
 
 async function doUpload() {
-  if (!uploading.value || !uploadFile.value) return;
+  if (!uploading.value || !uploadFiles.value.length) return;
+  const projectId = uploading.value;
+  uploading.value = 'loading';
   const formData = new FormData();
-  formData.append('file', uploadFile.value);
-  formData.append('name', uploadName.value || uploadFile.value.name);
+  formData.append('name', uploadName.value);
+  for (const file of uploadFiles.value) {
+    const relPath = (file as any).webkitRelativePath || file.name;
+    formData.append('files', file, relPath);
+  }
   const token = localStorage.getItem('pharos-token') || '';
-  const res = await fetch(`/api/projects/${uploading.value}/sources/upload`, {
+  const qs = keepStructure.value ? '' : '?keepStructure=false';
+  const res = await fetch(`/api/projects/${projectId}/sources/upload${qs}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
@@ -382,8 +399,10 @@ async function doUpload() {
   if (res.ok) {
     toast.success(t('common.success'));
     uploading.value = null;
+    uploadFiles.value = [];
     await loadProjects();
   } else {
+    uploading.value = null;
     toast.error(t('common.error'));
   }
 }
