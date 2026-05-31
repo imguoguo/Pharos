@@ -37,18 +37,39 @@ export async function handleAdminCommand(
   const cmd = rawCmd.startsWith('/') ? rawCmd.slice(1) : rawCmd;
 
   if (cmd === 'help') {
+    const admin = isAdmin(userId, roleIds, config) || isDM;
+
+    if (admin) {
+      return {
+        reply: [
+          '**Pharos Admin Commands**',
+          '`help` — show this list',
+          '`project create <name>` — create a new project',
+          '`project list` — list all projects',
+          '`project bind <project>` — bind current channel to project',
+          '`project unbind <project>` — unbind current channel from project',
+          '`repo add <project> <git-url> [branch] [interval-minutes]` — add & clone a Git repository',
+          '`repo sync <project> <source-name>` — manually pull a Git source',
+          '`source add <project> <path>` — add a local directory/file source',
+          '`source list <project>` — list sources in a project',
+        ].join('\n'),
+      };
+    }
+
+    const project = config.projects.find((p) => p.channels.includes(channelId));
+    const projectInfo = project
+      ? `Currently linked to project **${project.name}**${project.sources.length > 0 ? ` (${project.sources.length} knowledge sources)` : ''}.`
+      : 'This channel is not linked to any project yet.';
+
     return {
       reply: [
-        '**Pharos Commands**',
-        '`help` — show this list',
-        '`project create <name>` — create a new project',
-        '`project list` — list all projects',
-        '`project bind <project>` — bind current channel to project',
-        '`project unbind <project>` — unbind current channel from project',
-        '`repo add <project> <git-url> [branch] [interval-minutes]` — add & clone a Git repository',
-        '`repo sync <project> <source-name>` — manually pull a Git source',
-        '`source add <project> <path>` — add a local directory/file source',
-        '`source list <project>` — list sources in a project',
+        '**Pharos** — Intelligent Codebase Assistant',
+        '',
+        'I can explore code repositories, documentation, and knowledge sources to answer your technical questions.',
+        '',
+        'Just @mention me with your question and I will investigate the linked project to find the answer.',
+        '',
+        projectInfo,
       ].join('\n'),
     };
   }
