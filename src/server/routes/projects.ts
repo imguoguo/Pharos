@@ -5,6 +5,8 @@ import multer from 'multer';
 import type { ServerContext } from '../index.js';
 import { saveConfig } from '../../config/index.js';
 import type { Project, KnowledgeSource } from '../../types/config.js';
+import { createGitSource, getSyncProgress, syncGitSource } from '../../services/git.js';
+import { scheduleSource } from '../../services/scheduler.js';
 import { randomUUID } from 'crypto';
 
 const UPLOADS_DIR = resolve(process.cwd(), 'data', 'uploads');
@@ -105,6 +107,30 @@ export function createProjectsRouter(ctx: ServerContext): Router {
     res.status(201).json(source);
   });
 
+  router.post('/:id/sources/git', (req, res) => {
+    const project = ctx.config.projects.find((p) => p.id === req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    const source = createGitSource(project.id, {
+      id: randomUUID(),
+      name: req.body.name || req.body.remoteUrl,
+      type: 'git-repo',
+      path: '',
+      remoteUrl: req.body.remoteUrl,
+      branch: req.body.branch || 'main',
+      syncIntervalMinutes: Number(req.body.syncIntervalMinutes) || 0,
+      enabled: true,
+    });
+
+    project.sources.push(source);
+    project.updatedAt = new Date().toISOString();
+    scheduleSource(ctx.config, project, source);
+    saveConfig();
+
+    void syncGitSource(ctx.config, project, source).catch(() => undefined);
+    res.status(202).json(source);
+  });
+
   router.post('/:id/sources/upload', upload.single('file'), (req, res) => {
     const project = ctx.config.projects.find((p) => p.id === req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -123,12 +149,34 @@ export function createProjectsRouter(ctx: ServerContext): Router {
     res.status(201).json(source);
   });
 
+  router.get('/:id/sources/:sourceId/progress', (req, res) => {
+    const project = ctx.config.projects.find((p) => p.id === req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const source = project.sources.find((s) => s.id === req.params.sourceId);
+    if (!source) return res.status(404).json({ error: 'Source not found' });
+    res.json({ source, progress: getSyncProgress(source.id) });
+  });
+
+  router.post('/:id/sources/:sourceId/sync', async (req, res) => {
+    const project = ctx.config.projects.find((p) => p.id === req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const source = project.sources.find((s) => s.id === req.params.sourceId);
+    if (!source) return res.status(404).json({ error: 'Source not found' });
+    if (source.type !== 'git-repo') return res.status(400).json({ error: 'Source is not a Git repository' });
+
+    void syncGitSource(ctx.config, project, source).catch(() => undefined);
+    res.status(202).json(source);
+  });
+
   router.put('/:id/sources/:sourceId', (req, res) => {
     const project = ctx.config.projects.find((p) => p.id === req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     const sIdx = project.sources.findIndex((s) => s.id === req.params.sourceId);
     if (sIdx === -1) return res.status(404).json({ error: 'Source not found' });
     project.sources[sIdx] = { ...project.sources[sIdx], ...req.body };
+    if (project.sources[sIdx].type === 'git-repo') {
+      scheduleSource(ctx.config, project, project.sources[sIdx]);
+    }
     project.updatedAt = new Date().toISOString();
     saveConfig();
     res.json(project.sources[sIdx]);

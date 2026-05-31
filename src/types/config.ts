@@ -21,6 +21,8 @@ export interface LLMConfig {
   defaultProvider: string;
 }
 
+export type SourceSyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+
 export interface KnowledgeSource {
   id: string;
   name: string;
@@ -29,6 +31,13 @@ export interface KnowledgeSource {
   include?: string[];
   exclude?: string[];
   enabled: boolean;
+  remoteUrl?: string;
+  branch?: string;
+  syncStatus?: SourceSyncStatus;
+  syncError?: string;
+  syncIntervalMinutes?: number;
+  lastSyncAt?: string;
+  nextSyncAt?: string;
 }
 
 export interface Project {

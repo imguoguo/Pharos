@@ -7,17 +7,23 @@ const DATA_DIR = resolve(process.cwd(), 'data');
 const CONFIG_PATH = resolve(DATA_DIR, 'config.json');
 const HISTORY_DIR = resolve(DATA_DIR, 'history');
 const LOG_DIR = resolve(DATA_DIR, 'logs');
+const REPOS_DIR = resolve(DATA_DIR, 'repos');
 
 let config: AppConfig | null = null;
 
 function ensureDirs(): void {
-  for (const dir of [DATA_DIR, HISTORY_DIR, LOG_DIR]) {
+  for (const dir of [DATA_DIR, HISTORY_DIR, LOG_DIR, REPOS_DIR]) {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   }
 }
 
 export function getDataDir(): string {
   return DATA_DIR;
+}
+
+export function getReposDir(): string {
+  ensureDirs();
+  return REPOS_DIR;
 }
 
 export function loadConfig(): AppConfig {

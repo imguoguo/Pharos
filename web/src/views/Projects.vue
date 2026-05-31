@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
-      <h2>{{ t('projects.title') }}</h2>
+      <h2><span class="mdi mdi-folder-multiple"></span> {{ t('projects.title') }}</h2>
       <button class="btn btn-primary" @click="showAdd = true">
         <span class="mdi mdi-plus"></span> {{ t('projects.add') }}
       </button>
@@ -20,12 +20,8 @@
             <p class="project-desc">{{ project.description }}</p>
           </div>
           <div style="display: flex; gap: 6px;">
-            <button class="btn" @click="editProject(project)">
-              <span class="mdi mdi-pencil"></span> {{ t('projects.edit') }}
-            </button>
-            <button class="btn btn-danger" @click="deleteProject(project.id)">
-              <span class="mdi mdi-delete"></span> {{ t('projects.delete') }}
-            </button>
+            <button class="btn" @click="editProject(project)"><span class="mdi mdi-pencil"></span></button>
+            <button class="btn btn-danger" @click="deleteProject(project.id)"><span class="mdi mdi-delete"></span></button>
           </div>
         </div>
 
@@ -39,9 +35,7 @@
           <div class="tag-list">
             <span class="tag" v-for="(ch, i) in project.channels" :key="i">
               {{ ch }}
-              <span class="tag-remove" @click="removeChannel(project, i)">
-                <span class="mdi mdi-close"></span>
-              </span>
+              <span class="tag-remove" @click="removeChannel(project, i)"><span class="mdi mdi-close"></span></span>
             </span>
             <span v-if="project.channels.length === 0" style="color: var(--text-muted); font-size: 13px;">-</span>
           </div>
@@ -51,6 +45,9 @@
           <div class="section-header">
             <span class="section-title"><span class="mdi mdi-database"></span> {{ t('projects.sources') }} ({{ project.sources.length }})</span>
             <div style="display: flex; gap: 6px;">
+              <button class="btn" @click="openAddGit(project)">
+                <span class="mdi mdi-git"></span> {{ t('projects.addGitRepo') }}
+              </button>
               <button class="btn" @click="openUpload(project)">
                 <span class="mdi mdi-upload"></span> {{ t('projects.upload') }}
               </button>
@@ -65,6 +62,7 @@
                 <th>{{ t('projects.sourceName') }}</th>
                 <th>{{ t('projects.sourceType') }}</th>
                 <th>{{ t('projects.sourcePath') }}</th>
+                <th>Status</th>
                 <th>{{ t('projects.actions') }}</th>
               </tr>
             </thead>
@@ -72,11 +70,24 @@
               <tr v-for="source in project.sources" :key="source.id">
                 <td>{{ source.name }}</td>
                 <td><span class="badge badge-blue">{{ source.type }}</span></td>
-                <td style="font-family: monospace; font-size: 13px;">{{ source.path }}</td>
+                <td style="font-family: monospace; font-size: 12px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ source.path || source.remoteUrl }}</td>
                 <td>
-                  <button class="btn btn-danger" @click="deleteSource(project, source.id)">
-                    <span class="mdi mdi-delete"></span>
-                  </button>
+                  <span v-if="source.type === 'git-repo'" class="badge" :class="syncBadgeClass(source.syncStatus)">
+                    {{ syncLabel(source.syncStatus) }}
+                  </span>
+                </td>
+                <td>
+                  <div style="display: flex; gap: 4px;">
+                    <button v-if="source.type === 'git-repo'" class="btn" @click="syncSource(project, source)" :disabled="source.syncStatus === 'syncing'" :title="t('projects.syncNow')">
+                      <span class="mdi" :class="source.syncStatus === 'syncing' ? 'mdi-loading mdi-spin' : 'mdi-refresh'"></span>
+                    </button>
+                    <button v-if="source.type === 'git-repo'" class="btn" @click="openProgress(project, source)" :title="t('projects.progress')">
+                      <span class="mdi mdi-console"></span>
+                    </button>
+                    <button class="btn btn-danger" @click="deleteSource(project, source.id)">
+                      <span class="mdi mdi-delete"></span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -85,6 +96,7 @@
       </div>
     </div>
 
+    <!-- Project create/edit modal -->
     <div v-if="showAdd || editing" class="modal-overlay" @click.self="closeModal">
       <div class="modal">
         <div class="modal-header">{{ editing ? t('projects.edit') : t('projects.add') }}</div>
@@ -103,6 +115,7 @@
       </div>
     </div>
 
+    <!-- Add source modal -->
     <div v-if="addingSource" class="modal-overlay" @click.self="addingSource = null">
       <div class="modal">
         <div class="modal-header">{{ t('projects.addSource') }}</div>
@@ -115,7 +128,6 @@
           <select class="select" v-model="sourceForm.type">
             <option value="directory">{{ t('projects.directory') }}</option>
             <option value="file">{{ t('projects.file') }}</option>
-            <option value="git-repo">{{ t('projects.gitRepo') }}</option>
             <option value="url">{{ t('projects.url') }}</option>
           </select>
         </div>
@@ -130,6 +142,7 @@
       </div>
     </div>
 
+    <!-- Add channel modal -->
     <div v-if="addingChannel" class="modal-overlay" @click.self="addingChannel = null">
       <div class="modal">
         <div class="modal-header">{{ t('projects.addChannel') }}</div>
@@ -144,6 +157,7 @@
       </div>
     </div>
 
+    <!-- Upload modal -->
     <div v-if="uploading" class="modal-overlay" @click.self="uploading = null">
       <div class="modal">
         <div class="modal-header"><span class="mdi mdi-upload"></span> {{ t('projects.upload') }}</div>
@@ -163,11 +177,61 @@
         </div>
       </div>
     </div>
+
+    <!-- Add Git repo modal -->
+    <div v-if="addingGit" class="modal-overlay" @click.self="addingGit = null">
+      <div class="modal">
+        <div class="modal-header"><span class="mdi mdi-git"></span> {{ t('projects.addGitRepo') }}</div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.sourceName') }}</label>
+          <input class="input" v-model="gitForm.name" placeholder="my-repo (optional)" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.gitUrl') }}</label>
+          <input class="input" v-model="gitForm.remoteUrl" placeholder="https://github.com/org/repo.git" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.gitBranch') }}</label>
+          <input class="input" v-model="gitForm.branch" placeholder="main" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ t('projects.syncInterval') }}</label>
+          <input class="input" type="number" v-model.number="gitForm.syncIntervalMinutes" min="0" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="addingGit = null">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary" @click="saveGitSource" :disabled="!gitForm.remoteUrl">
+            <span class="mdi mdi-git"></span> {{ t('projects.addGitRepo') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress modal -->
+    <div v-if="progressData" class="modal-overlay" @click.self="stopProgressPoll">
+      <div class="modal" style="max-width: 640px;">
+        <div class="modal-header">
+          <span class="mdi mdi-console"></span> {{ progressData.source.name }}
+          <span class="badge" :class="syncBadgeClass(progressData.progress.status)" style="margin-left: 8px;">{{ progressData.progress.status }}</span>
+        </div>
+        <div class="progress-log">
+          <div v-for="(line, i) in progressData.progress.lines" :key="i" class="progress-line">{{ line }}</div>
+          <div v-if="progressData.progress.lines.length === 0" style="color: var(--text-muted);">No output yet.</div>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+          <span v-if="progressData.source.lastSyncAt">{{ t('projects.lastSync') }}: {{ new Date(progressData.source.lastSyncAt).toLocaleString() }}</span>
+          <span v-if="progressData.source.nextSyncAt" style="margin-left: 16px;">{{ t('projects.nextSync') }}: {{ new Date(progressData.source.nextSyncAt).toLocaleString() }}</span>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="stopProgressPoll">{{ t('common.cancel') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue';
+import { ref, onMounted, onUnmounted, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
@@ -185,13 +249,40 @@ const channelInput = ref('');
 const uploading = ref<string | null>(null);
 const uploadName = ref('');
 const uploadFile = ref<File | null>(null);
+const addingGit = ref<string | null>(null);
+const gitForm = ref({ name: '', remoteUrl: '', branch: 'main', syncIntervalMinutes: 0 });
+const progressData = ref<any>(null);
+let progressTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
   await loadProjects();
 });
 
+onUnmounted(() => {
+  stopProgressPoll();
+});
+
 async function loadProjects() {
   projects.value = await api.get('/projects') || [];
+}
+
+function syncBadgeClass(status?: string) {
+  return {
+    'badge-blue': status === 'syncing',
+    'badge-yellow': status === 'idle' || !status,
+    'badge-success': status === 'success',
+    'badge-red': status === 'error',
+  };
+}
+
+function syncLabel(status?: string) {
+  const map: Record<string, string> = {
+    syncing: t('projects.syncing'),
+    success: t('projects.syncSuccess'),
+    error: t('projects.syncError'),
+    idle: t('projects.syncIdle'),
+  };
+  return map[status ?? 'idle'] ?? status ?? '-';
 }
 
 function editProject(project: any) {
@@ -273,9 +364,7 @@ function onFileSelect(e: Event) {
   const input = e.target as HTMLInputElement;
   if (input.files?.length) {
     uploadFile.value = input.files[0];
-    if (!uploadName.value) {
-      uploadName.value = input.files[0].name;
-    }
+    if (!uploadName.value) uploadName.value = input.files[0].name;
   }
 }
 
@@ -284,14 +373,12 @@ async function doUpload() {
   const formData = new FormData();
   formData.append('file', uploadFile.value);
   formData.append('name', uploadName.value || uploadFile.value.name);
-
   const token = localStorage.getItem('pharos-token') || '';
   const res = await fetch(`/api/projects/${uploading.value}/sources/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
-
   if (res.ok) {
     toast.success(t('common.success'));
     uploading.value = null;
@@ -299,6 +386,60 @@ async function doUpload() {
   } else {
     toast.error(t('common.error'));
   }
+}
+
+function openAddGit(project: any) {
+  addingGit.value = project.id;
+  gitForm.value = { name: '', remoteUrl: '', branch: 'main', syncIntervalMinutes: 0 };
+}
+
+async function saveGitSource() {
+  if (!addingGit.value || !gitForm.value.remoteUrl) return;
+  await api.post(`/projects/${addingGit.value}/sources/git`, gitForm.value);
+  addingGit.value = null;
+  await loadProjects();
+  toast.success(t('common.success'));
+}
+
+async function syncSource(project: any, source: any) {
+  source.syncStatus = 'syncing';
+  await api.post(`/projects/${project.id}/sources/${source.id}/sync`, {});
+  await pollProgress(project.id, source.id);
+}
+
+async function openProgress(project: any, source: any) {
+  const data = await api.get(`/projects/${project.id}/sources/${source.id}/progress`);
+  progressData.value = data;
+  startProgressPoll(project.id, source.id);
+}
+
+function startProgressPoll(projectId: string, sourceId: string) {
+  stopProgressPoll();
+  progressTimer = setInterval(async () => {
+    const data = await api.get(`/projects/${projectId}/sources/${sourceId}/progress`);
+    progressData.value = data;
+    if (data?.progress?.status !== 'syncing') {
+      stopProgressPoll();
+      await loadProjects();
+    }
+  }, 1500);
+}
+
+async function pollProgress(projectId: string, sourceId: string) {
+  const data = await api.get(`/projects/${projectId}/sources/${sourceId}/progress`);
+  if (data?.progress?.status === 'syncing') {
+    startProgressPoll(projectId, sourceId);
+  } else {
+    await loadProjects();
+  }
+}
+
+function stopProgressPoll() {
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+  }
+  progressData.value = null;
 }
 </script>
 
@@ -374,5 +515,31 @@ async function doUpload() {
   display: block;
   margin-bottom: 12px;
   opacity: 0.5;
+}
+.badge-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+.progress-log {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius);
+  padding: 12px;
+  font-family: monospace;
+  font-size: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+.progress-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+@keyframes mdi-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.mdi-spin {
+  display: inline-block;
+  animation: mdi-spin 1s linear infinite;
 }
 </style>

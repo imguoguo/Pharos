@@ -3,6 +3,7 @@ import { initProviders, getProvider } from './llm/index.js';
 import { AgentExecutor } from './agent/executor.js';
 import { DiscordBot } from './bot/index.js';
 import { startServer } from './server/index.js';
+import { refreshSchedules } from './services/scheduler.js';
 
 async function main() {
   console.log('[Pharos] Starting...');
@@ -22,8 +23,9 @@ async function main() {
     maxConcurrency: config.agent.maxConcurrency,
   });
 
-  const bot = new DiscordBot(config.discord, agent, config.projects);
+  const bot = new DiscordBot(config.discord, agent, config.projects, config);
 
+  refreshSchedules(config);
   startServer({ config, agent, bot });
 
   if (config.discord.token) {

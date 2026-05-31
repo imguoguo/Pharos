@@ -1,8 +1,9 @@
 import { Client, GatewayIntentBits, Events, type Message as DiscordMessage } from 'discord.js';
-import type { DiscordConfig, Project } from '../types/config.js';
+import type { AppConfig, DiscordConfig, Project } from '../types/config.js';
 import { AgentExecutor } from '../agent/executor.js';
 import { appendHistory, appendLog } from '../config/index.js';
 import type { ConversationEntry } from '../types/agent.js';
+import { handleAdminCommand } from './commands.js';
 import { randomUUID } from 'crypto';
 
 const REACTION_PROCESSING = '⏳';
@@ -10,14 +11,18 @@ const REACTION_DONE = '✅';
 const REACTION_ERROR = '❌';
 const MAX_MESSAGE_LENGTH = 2000;
 
+const ADMIN_PREFIXES = ['project ', 'repo ', 'source ', 'help'];
+
 export class DiscordBot {
   private client: Client;
-  private config: DiscordConfig;
+  private discordConfig: DiscordConfig;
+  private appConfig: AppConfig;
   private agent: AgentExecutor;
   private projects: Project[];
 
-  constructor(config: DiscordConfig, agent: AgentExecutor, projects: Project[]) {
-    this.config = config;
+  constructor(config: DiscordConfig, agent: AgentExecutor, projects: Project[], appConfig: AppConfig) {
+    this.discordConfig = config;
+    this.appConfig = appConfig;
     this.agent = agent;
     this.projects = projects;
     this.client = new Client({
@@ -25,6 +30,7 @@ export class DiscordBot {
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessages,
       ],
     });
     this.setupEvents();
@@ -46,19 +52,48 @@ export class DiscordBot {
     return this.projects.find((p) => p.channels.includes(channelId));
   }
 
+  private getMemberRoleIds(message: DiscordMessage): string[] {
+    return message.member?.roles.cache.map((r) => r.id) ?? [];
+  }
+
   private async handleMessage(message: DiscordMessage): Promise<void> {
     if (message.author.bot) return;
     if (!this.client.user) return;
-    if (!message.mentions.has(this.client.user)) return;
 
-    const project = this.findProjectForChannel(message.channelId);
-    if (!project) return;
+    const isDM = !message.guildId;
+    const mentionsBot = message.mentions.has(this.client.user);
+
+    if (!mentionsBot && !isDM) return;
 
     const query = message.content
       .replace(new RegExp(`<@!?${this.client.user.id}>`, 'g'), '')
       .trim();
 
     if (!query) return;
+
+    const lowerQuery = query.toLowerCase();
+    const isAdminCmd = ADMIN_PREFIXES.some((p) => lowerQuery.startsWith(p));
+
+    if (isAdminCmd || isDM) {
+      const roleIds = this.getMemberRoleIds(message);
+      const result = await handleAdminCommand(
+        query,
+        message.author.id,
+        roleIds,
+        message.channelId,
+        message.guildId ?? '',
+        isDM,
+        this.appConfig,
+      );
+      if (result) {
+        await message.reply(result.reply);
+        return;
+      }
+      if (isDM) return;
+    }
+
+    const project = this.findProjectForChannel(message.channelId);
+    if (!project) return;
 
     await message.react(REACTION_PROCESSING);
     const startTime = Date.now();
@@ -137,7 +172,7 @@ export class DiscordBot {
   }
 
   async start(): Promise<void> {
-    await this.client.login(this.config.token);
+    await this.client.login(this.discordConfig.token);
   }
 
   async stop(): Promise<void> {
