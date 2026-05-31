@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import type { AppConfig } from '../types/config.js';
 import { createApiRouter } from './routes/index.js';
 import { createAuthMiddleware } from './routes/auth.js';
+import { createRateLimiter, createHealthRouter } from './middleware.js';
 import type { AgentExecutor } from '../agent/executor.js';
 import type { DiscordBot } from '../bot/index.js';
 
@@ -18,6 +19,9 @@ export function createServer(ctx: ServerContext): express.Application {
 
   app.use(cors());
   app.use(express.json());
+  app.use(createRateLimiter());
+
+  app.use(createHealthRouter());
 
   const { middleware } = createAuthMiddleware(ctx);
   app.use(middleware);
@@ -28,6 +32,11 @@ export function createServer(ctx: ServerContext): express.Application {
   app.use(express.static(webDist));
   app.get('/{*splat}', (_req, res) => {
     res.sendFile(resolve(webDist, 'index.html'));
+  });
+
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    console.error('[Pharos] Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   });
 
   return app;
