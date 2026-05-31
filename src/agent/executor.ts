@@ -112,7 +112,7 @@ export class AgentExecutor {
         return response.content;
       }
 
-      messages.push({ role: 'assistant', content: JSON.stringify(response) });
+      messages.push({ role: 'assistant', content: response.content || '' });
 
       const results: ToolResult[] = [];
       for (const call of response.toolCalls) {
@@ -156,7 +156,7 @@ export class AgentExecutor {
       });
     }
 
-    return messages[messages.length - 1]?.content ?? 'Unable to determine an answer.';
+    return 'I explored the available sources but was unable to formulate a complete answer within the iteration limit.';
   }
 
   private buildSystemPrompt(): string {
