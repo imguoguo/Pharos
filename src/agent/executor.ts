@@ -1,10 +1,12 @@
 import { randomUUID } from 'crypto';
 import type { AgentTask, AgentStep } from '../types/agent.js';
-import type { KnowledgeSource } from '../types/config.js';
+import type { KnowledgeSource, ProgressVerbosity } from '../types/config.js';
 import type { Message, ToolResult } from '../types/llm.js';
 import { chatWithFallback } from '../llm/index.js';
 import { createAgentTools, type AgentTool } from './tools.js';
 import { appendLog } from '../config/index.js';
+
+export type StepCallback = (step: AgentStep) => void;
 
 interface AgentExecutorOptions {
   timeout: number;
@@ -18,6 +20,7 @@ export class AgentExecutor {
   private queue: Array<{
     task: AgentTask;
     sources: KnowledgeSource[];
+    onStep?: StepCallback;
     resolve: (result: AgentTask) => void;
   }> = [];
 
@@ -33,6 +36,7 @@ export class AgentExecutor {
     messageId: string,
     projectId: string,
     sources: KnowledgeSource[],
+    onStep?: StepCallback,
   ): Promise<AgentTask> {
     const task: AgentTask = {
       id: randomUUID(),
@@ -46,7 +50,7 @@ export class AgentExecutor {
     };
 
     return new Promise((resolve) => {
-      this.queue.push({ task, sources, resolve });
+      this.queue.push({ task, sources, onStep, resolve });
       this.processQueue();
     });
   }
@@ -61,7 +65,7 @@ export class AgentExecutor {
 
     try {
       const tools = createAgentTools(item.sources);
-      const result = await this.runAgent(item.task.query, tools, item.task.steps);
+      const result = await this.runAgent(item.task.query, tools, item.task.steps, item.onStep);
       item.task.status = 'completed';
       item.task.result = result;
       item.task.completedAt = new Date().toISOString();
@@ -77,7 +81,7 @@ export class AgentExecutor {
     }
   }
 
-  private async runAgent(query: string, tools: AgentTool[], steps: AgentStep[]): Promise<string> {
+  private async runAgent(query: string, tools: AgentTool[], steps: AgentStep[], onStep?: StepCallback): Promise<string> {
     const systemPrompt = this.buildSystemPrompt();
     const messages: Message[] = [
       { role: 'system', content: systemPrompt },
@@ -95,12 +99,14 @@ export class AgentExecutor {
 
       const response = await chatWithFallback(messages, toolDefs);
 
-      steps.push({
+      const llmStep: AgentStep = {
         type: 'llm_call',
         timestamp: new Date().toISOString(),
         content: response.content || '(tool calls)',
         providerId: response.providerId,
-      });
+      };
+      steps.push(llmStep);
+      onStep?.(llmStep);
 
       if (!response.toolCalls?.length) {
         return response.content;
@@ -110,29 +116,37 @@ export class AgentExecutor {
 
       const results: ToolResult[] = [];
       for (const call of response.toolCalls) {
-        steps.push({
+        const callStep: AgentStep = {
           type: 'tool_call',
           timestamp: new Date().toISOString(),
           toolName: call.name,
           toolArgs: call.arguments,
           content: `${call.name}(${JSON.stringify(call.arguments)})`,
-        });
+        };
+        steps.push(callStep);
+        onStep?.(callStep);
 
         const tool = tools.find((t) => t.definition.name === call.name);
         if (!tool) {
           const errContent = `Unknown tool: ${call.name}`;
           results.push({ id: call.id, content: errContent, error: true });
-          steps.push({ type: 'tool_result', timestamp: new Date().toISOString(), toolName: call.name, content: errContent });
+          const errStep: AgentStep = { type: 'tool_result', timestamp: new Date().toISOString(), toolName: call.name, content: errContent };
+          steps.push(errStep);
+          onStep?.(errStep);
           continue;
         }
         try {
           const output = await tool.execute(call.arguments);
           results.push({ id: call.id, content: output });
-          steps.push({ type: 'tool_result', timestamp: new Date().toISOString(), toolName: call.name, content: output.slice(0, 2000) });
+          const resultStep: AgentStep = { type: 'tool_result', timestamp: new Date().toISOString(), toolName: call.name, content: output.slice(0, 2000) };
+          steps.push(resultStep);
+          onStep?.(resultStep);
         } catch (err) {
           const errContent = `Error: ${err}`;
           results.push({ id: call.id, content: errContent, error: true });
-          steps.push({ type: 'tool_result', timestamp: new Date().toISOString(), toolName: call.name, content: errContent });
+          const errStep: AgentStep = { type: 'tool_result', timestamp: new Date().toISOString(), toolName: call.name, content: errContent };
+          steps.push(errStep);
+          onStep?.(errStep);
         }
       }
 

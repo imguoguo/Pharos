@@ -26,9 +26,14 @@
           <label class="form-label">{{ t('settings.maxConcurrency') }}</label>
           <input class="input" type="number" v-model.number="agentForm.maxConcurrency" />
         </div>
-        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" v-model="agentForm.sandbox" id="sandbox-toggle" />
-          <label for="sandbox-toggle" style="font-size: 14px;"><span class="mdi mdi-shield-check"></span> {{ t('settings.sandbox') }}</label>
+        <div class="form-group">
+          <label class="form-label">{{ t('settings.progressVerbosity') }}</label>
+          <select class="select" v-model="agentForm.progressVerbosity">
+            <option value="silent">{{ t('settings.verbositySilent') }}</option>
+            <option value="progress">{{ t('settings.verbosityProgress') }}</option>
+            <option value="detailed">{{ t('settings.verbosityDetailed') }}</option>
+          </select>
+          <p class="form-hint">{{ t('settings.progressHint') }}</p>
         </div>
         <button class="btn btn-primary" @click="saveAgent">
           <span class="mdi mdi-content-save"></span> {{ t('common.save') }}
@@ -47,7 +52,7 @@ const { t } = useI18n();
 const toast = inject<any>('toast');
 
 const newPassword = ref('');
-const agentForm = ref({ timeout: 60000, maxConcurrency: 3, sandbox: true });
+const agentForm = ref({ timeout: 60000, maxConcurrency: 3, progressVerbosity: 'progress' });
 
 onMounted(async () => {
   const status = await api.get('/status');
@@ -55,7 +60,7 @@ onMounted(async () => {
     agentForm.value = {
       timeout: status.agent.timeout,
       maxConcurrency: status.agent.maxConcurrency,
-      sandbox: status.agent.sandbox,
+      progressVerbosity: status.agent.progressVerbosity || 'progress',
     };
   }
 });
@@ -71,7 +76,7 @@ async function saveAgent() {
   await api.put('/config/agent', {
     timeout: agentForm.value.timeout,
     maxConcurrency: agentForm.value.maxConcurrency,
-    sandbox: { enabled: agentForm.value.sandbox },
+    progressVerbosity: agentForm.value.progressVerbosity,
   });
   toast.success(t('common.success'));
 }
@@ -90,5 +95,10 @@ async function saveAgent() {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.form-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
 }
 </style>

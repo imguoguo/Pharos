@@ -16,7 +16,8 @@
     "sandbox": {
       "enabled": true,
       "workDir": "/tmp/pharos-sandbox"
-    }
+    },
+    "progressVerbosity": "progress"
   },
   "server": {
     "port": 3000,

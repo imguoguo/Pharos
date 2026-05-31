@@ -1,8 +1,8 @@
 import { Client, GatewayIntentBits, Events, type Message as DiscordMessage } from 'discord.js';
-import type { AppConfig, DiscordConfig, Project } from '../types/config.js';
-import { AgentExecutor } from '../agent/executor.js';
+import type { AppConfig, DiscordConfig, Project, ProgressVerbosity } from '../types/config.js';
+import { AgentExecutor, type StepCallback } from '../agent/executor.js';
 import { appendHistory, appendLog } from '../config/index.js';
-import type { ConversationEntry } from '../types/agent.js';
+import type { AgentStep, ConversationEntry } from '../types/agent.js';
 import { handleAdminCommand } from './commands.js';
 import { randomUUID } from 'crypto';
 
@@ -55,6 +55,10 @@ export class DiscordBot {
     return message.member?.roles.cache.map((r) => r.id) ?? [];
   }
 
+  private getVerbosity(): ProgressVerbosity {
+    return this.appConfig.agent.progressVerbosity || 'progress';
+  }
+
   private async handleMessage(message: DiscordMessage): Promise<void> {
     if (message.author.bot) return;
     if (!this.client.user) return;
@@ -97,8 +101,28 @@ export class DiscordBot {
       return;
     }
 
-    await message.react(REACTION_PROCESSING);
+    const verbosity = this.getVerbosity();
+    let progressMsg: DiscordMessage | null = null;
+
+    if (verbosity !== 'silent') {
+      progressMsg = await message.reply('⏳ Thinking...');
+    } else {
+      await message.react(REACTION_PROCESSING);
+    }
+
     const startTime = Date.now();
+    let stepCount = 0;
+
+    const onStep: StepCallback | undefined = verbosity === 'silent' ? undefined : async (step) => {
+      if (!progressMsg) return;
+      stepCount++;
+      try {
+        const statusText = this.formatProgress(step, stepCount, verbosity);
+        await progressMsg.edit(statusText);
+      } catch {
+        // message may have been deleted
+      }
+    };
 
     try {
       const task = await this.agent.execute(
@@ -108,12 +132,22 @@ export class DiscordBot {
         message.id,
         project.id,
         project.sources.filter((s) => s.enabled),
+        onStep,
       );
 
-      await message.reactions.cache.get(REACTION_PROCESSING)?.users.remove(this.client.user.id);
+      if (verbosity === 'silent') {
+        await message.reactions.cache.get(REACTION_PROCESSING)?.users.remove(this.client.user.id);
+      }
 
       if (task.status === 'completed' && task.result) {
-        await this.sendChunked(message, task.result);
+        if (progressMsg) {
+          await progressMsg.edit(task.result.slice(0, MAX_MESSAGE_LENGTH));
+          if (task.result.length > MAX_MESSAGE_LENGTH) {
+            await this.sendChunked(message, task.result.slice(MAX_MESSAGE_LENGTH), false);
+          }
+        } else {
+          await this.sendChunked(message, task.result, true);
+        }
         await message.react(REACTION_DONE);
 
         const entry: ConversationEntry = {
@@ -133,22 +167,62 @@ export class DiscordBot {
         };
         appendHistory(entry);
       } else {
-        await message.reply(task.error ?? 'An error occurred while processing your question.');
+        const errMsg = task.error ?? 'An error occurred while processing your question.';
+        if (progressMsg) {
+          await progressMsg.edit(errMsg);
+        } else {
+          await message.reply(errMsg);
+        }
         await message.react(REACTION_ERROR);
       }
     } catch (err) {
-      await message.reactions.cache.get(REACTION_PROCESSING)?.users.remove(this.client.user.id);
+      if (verbosity === 'silent') {
+        await message.reactions.cache.get(REACTION_PROCESSING)?.users.remove(this.client.user.id);
+      }
+      if (progressMsg) {
+        await progressMsg.edit('Internal error occurred.').catch(() => {});
+      } else {
+        await message.reply('Internal error occurred.');
+      }
       await message.react(REACTION_ERROR);
-      await message.reply('Internal error occurred.');
       appendLog('error', `Message handling error: ${err}`);
     }
   }
 
-  private async sendChunked(message: DiscordMessage, content: string): Promise<void> {
-    if (content.length <= MAX_MESSAGE_LENGTH) {
-      await message.reply(content);
-      return;
+  private formatProgress(step: AgentStep, count: number, verbosity: ProgressVerbosity): string {
+    if (verbosity === 'detailed') {
+      if (step.type === 'tool_call') {
+        return `⏳ Step ${count}: calling \`${step.toolName}\`\n\`\`\`${JSON.stringify(step.toolArgs, null, 2).slice(0, 300)}\`\`\``;
+      }
+      if (step.type === 'tool_result') {
+        const preview = step.content.slice(0, 500).replace(/```/g, '\\`\\`\\`');
+        return `⏳ Step ${count}: \`${step.toolName}\` returned\n\`\`\`${preview}\`\`\``;
+      }
+      return `⏳ Step ${count}: thinking...`;
     }
+
+    if (step.type === 'tool_call') {
+      return `⏳ Exploring... (step ${count}: ${step.toolName})`;
+    }
+    if (step.type === 'llm_call') {
+      return `⏳ Analyzing... (step ${count})`;
+    }
+    return `⏳ Processing... (step ${count})`;
+  }
+
+  private async sendChunked(message: DiscordMessage, content: string, asReply: boolean): Promise<void> {
+    const chunks = this.splitContent(content);
+    for (let i = 0; i < chunks.length; i++) {
+      if (i === 0 && asReply) {
+        await message.reply(chunks[i]);
+      } else {
+        await message.channel.send(chunks[i]);
+      }
+    }
+  }
+
+  private splitContent(content: string): string[] {
+    if (content.length <= MAX_MESSAGE_LENGTH) return [content];
 
     const chunks: string[] = [];
     let remaining = content;
@@ -157,28 +231,34 @@ export class DiscordBot {
         chunks.push(remaining);
         break;
       }
-      let splitAt = remaining.lastIndexOf('\n\n', MAX_MESSAGE_LENGTH);
-      if (splitAt === -1 || splitAt < 200) {
-        splitAt = remaining.lastIndexOf('\n', MAX_MESSAGE_LENGTH);
+
+      const inCodeBlock = (remaining.slice(0, MAX_MESSAGE_LENGTH).match(/```/g) || []).length % 2 === 1;
+
+      let splitAt = -1;
+      if (!inCodeBlock) {
+        splitAt = remaining.lastIndexOf('\n\n', MAX_MESSAGE_LENGTH);
+        if (splitAt === -1 || splitAt < 200) {
+          splitAt = remaining.lastIndexOf('\n', MAX_MESSAGE_LENGTH);
+        }
+        if (splitAt === -1 || splitAt < 200) {
+          splitAt = remaining.lastIndexOf('. ', MAX_MESSAGE_LENGTH);
+          if (splitAt !== -1) splitAt += 1;
+        }
       }
-      if (splitAt === -1 || splitAt < 200) {
-        splitAt = remaining.lastIndexOf('. ', MAX_MESSAGE_LENGTH);
-        if (splitAt !== -1) splitAt += 1;
+
+      if (inCodeBlock || splitAt === -1 || splitAt < 200) {
+        const closeIdx = remaining.indexOf('\n```', 100);
+        if (inCodeBlock && closeIdx !== -1 && closeIdx < MAX_MESSAGE_LENGTH - 10) {
+          splitAt = closeIdx + 4;
+        } else {
+          splitAt = MAX_MESSAGE_LENGTH;
+        }
       }
-      if (splitAt === -1 || splitAt < 200) {
-        splitAt = MAX_MESSAGE_LENGTH;
-      }
+
       chunks.push(remaining.slice(0, splitAt));
       remaining = remaining.slice(splitAt).trimStart();
     }
-
-    for (let i = 0; i < chunks.length; i++) {
-      if (i === 0) {
-        await message.reply(chunks[i]);
-      } else {
-        await message.channel.send(chunks[i]);
-      }
-    }
+    return chunks;
   }
 
   async start(): Promise<void> {

@@ -125,6 +125,11 @@ export default {
     timeout: '超时时间 (ms)',
     maxConcurrency: '最大并发',
     sandbox: '沙箱模式',
+    progressVerbosity: '进度显示详细程度',
+    verbositySilent: '静默（仅等待结果）',
+    verbosityProgress: '显示进度（默认）',
+    verbosityDetailed: '详细（显示内容）',
+    progressHint: 'Bot 在 Discord 中回复探索进度时的信息量',
   },
   auth: {
     title: 'Pharos',

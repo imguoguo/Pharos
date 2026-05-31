@@ -125,6 +125,11 @@ export default {
     timeout: 'Timeout (ms)',
     maxConcurrency: 'Max Concurrency',
     sandbox: 'Sandbox Mode',
+    progressVerbosity: 'Progress Verbosity',
+    verbositySilent: 'Silent (wait for result only)',
+    verbosityProgress: 'Show progress (default)',
+    verbosityDetailed: 'Detailed (show content)',
+    progressHint: 'How much info the bot shows in Discord while exploring',
   },
   auth: {
     title: 'Pharos',

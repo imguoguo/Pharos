@@ -56,10 +56,13 @@ export interface SandboxConfig {
   workDir: string;
 }
 
+export type ProgressVerbosity = 'silent' | 'progress' | 'detailed';
+
 export interface AgentConfig {
   timeout: number;
   maxConcurrency: number;
   sandbox: SandboxConfig;
+  progressVerbosity: ProgressVerbosity;
 }
 
 export interface ServerConfig {
