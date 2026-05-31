@@ -13,45 +13,49 @@
     </div>
 
     <div v-else class="card">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>{{ t('providers.name') }}</th>
-            <th>{{ t('providers.type') }}</th>
-            <th>{{ t('providers.model') }}</th>
-            <th>{{ t('providers.baseUrl') }}</th>
-            <th>{{ t('providers.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="provider in providers" :key="provider.id">
-            <td>
-              {{ provider.name }}
-              <span v-if="provider.id === defaultProvider" class="badge badge-yellow" style="margin-left: 8px;">Default</span>
-            </td>
-            <td><span class="badge badge-blue">{{ provider.type }}</span></td>
-            <td style="font-family: monospace; font-size: 13px;">{{ provider.model }}</td>
-            <td style="font-family: monospace; font-size: 12px; color: var(--text-secondary);">{{ provider.baseUrl || '-' }}</td>
-            <td>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button class="btn" @click="testProvider(provider.id)" :disabled="testingId === provider.id">
-                  <span class="mdi mdi-connection"></span>
-                  {{ testingId === provider.id ? t('providers.testing') : t('providers.test') }}
-                </button>
-                <button class="btn" @click="editProvider(provider)">
-                  <span class="mdi mdi-pencil"></span>
-                </button>
-                <button class="btn" @click="setDefault(provider.id)" v-if="provider.id !== defaultProvider">
-                  <span class="mdi mdi-star-outline"></span>
-                </button>
-                <button class="btn btn-danger" @click="deleteProvider(provider.id)">
-                  <span class="mdi mdi-delete"></span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="provider-list">
+        <div
+          v-for="(provider, idx) in providers"
+          :key="provider.id"
+          class="provider-row"
+          :class="{ disabled: !provider.enabled }"
+        >
+          <div class="provider-drag">
+            <button class="btn-icon" @click="moveUp(idx)" :disabled="idx === 0" title="Move up">
+              <span class="mdi mdi-chevron-up"></span>
+            </button>
+            <span class="priority-badge">{{ idx + 1 }}</span>
+            <button class="btn-icon" @click="moveDown(idx)" :disabled="idx === providers.length - 1" title="Move down">
+              <span class="mdi mdi-chevron-down"></span>
+            </button>
+          </div>
+          <div class="provider-toggle">
+            <label class="switch">
+              <input type="checkbox" :checked="provider.enabled" @change="toggleProvider(provider.id)" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="provider-info">
+            <div class="provider-name">{{ provider.name }}</div>
+            <div class="provider-meta">
+              <span class="badge badge-blue">{{ provider.type }}</span>
+              <span style="font-family: monospace; font-size: 12px; color: var(--text-secondary);">{{ provider.model }}</span>
+              <span v-if="provider.baseUrl" style="font-family: monospace; font-size: 11px; color: var(--text-muted);">{{ provider.baseUrl }}</span>
+            </div>
+          </div>
+          <div class="provider-actions">
+            <button class="btn" @click="testProvider(provider.id)" :disabled="testingId === provider.id">
+              <span class="mdi mdi-connection"></span>
+            </button>
+            <button class="btn" @click="editProvider(provider)">
+              <span class="mdi mdi-pencil"></span>
+            </button>
+            <button class="btn btn-danger" @click="deleteProvider(provider.id)">
+              <span class="mdi mdi-delete"></span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="showAdd || editing" class="modal-overlay" @click.self="closeModal">
@@ -128,7 +132,6 @@ const { t } = useI18n();
 const toast = inject<any>('toast');
 
 const providers = ref<any[]>([]);
-const defaultProvider = ref('');
 const showAdd = ref(false);
 const editing = ref<string | null>(null);
 const testingId = ref<string | null>(null);
@@ -144,8 +147,9 @@ onMounted(async () => {
 
 async function loadProviders() {
   const data = await api.get('/providers');
-  providers.value = data?.providers || [];
-  defaultProvider.value = data?.defaultProvider || '';
+  const list = data?.providers || [];
+  list.sort((a: any, b: any) => (a.priority ?? 0) - (b.priority ?? 0));
+  providers.value = list;
 }
 
 function editProvider(provider: any) {
@@ -182,10 +186,25 @@ async function deleteProvider(id: string) {
   toast.success(t('common.success'));
 }
 
-async function setDefault(id: string) {
-  await api.put('/providers/default', { providerId: id });
+async function toggleProvider(id: string) {
+  await api.put(`/providers/${id}/toggle`, {});
   await loadProviders();
-  toast.success(t('common.success'));
+}
+
+async function moveUp(idx: number) {
+  if (idx === 0) return;
+  const order = providers.value.map((p: any) => p.id);
+  [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+  await api.put('/providers/reorder', { order });
+  await loadProviders();
+}
+
+async function moveDown(idx: number) {
+  if (idx >= providers.value.length - 1) return;
+  const order = providers.value.map((p: any) => p.id);
+  [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
+  await api.put('/providers/reorder', { order });
+  await loadProviders();
 }
 
 async function testProvider(id: string) {
@@ -227,6 +246,119 @@ async function fetchModels() {
 </script>
 
 <style scoped>
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.provider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  transition: background 0.15s;
+}
+.provider-row:hover {
+  background: var(--bg-tertiary);
+}
+.provider-row.disabled {
+  opacity: 0.5;
+}
+.provider-drag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  font-size: 16px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.btn-icon:hover:not(:disabled) {
+  color: var(--accent-blue);
+}
+.btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.priority-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+}
+.provider-toggle {
+  flex-shrink: 0;
+}
+.provider-info {
+  flex: 1;
+  min-width: 0;
+}
+.provider-name {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.provider-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.provider-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--border);
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+.slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  bottom: 2px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.switch input:checked + .slider {
+  background: var(--accent-blue);
+}
+.switch input:checked + .slider::before {
+  transform: translateX(16px);
+}
 .model-list {
   margin-top: 8px;
   max-height: 200px;
