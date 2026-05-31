@@ -1,0 +1,54 @@
+{
+  "discord": {
+    "token": "",
+    "clientId": "",
+    "allowedChannels": [],
+    "adminRoles": []
+  },
+  "llm": {
+    "providers": [
+      {
+        "id": "anthropic-default",
+        "type": "anthropic",
+        "name": "Claude (Anthropic)",
+        "apiKey": "",
+        "model": "claude-sonnet-4-20250514",
+        "maxTokens": 4096
+      },
+      {
+        "id": "openai-chat",
+        "type": "openai-chat",
+        "name": "OpenAI Chat",
+        "apiKey": "",
+        "baseUrl": "https://api.openai.com/v1",
+        "model": "gpt-4o",
+        "maxTokens": 4096
+      },
+      {
+        "id": "openai-responses",
+        "type": "openai-responses",
+        "name": "OpenAI Responses",
+        "apiKey": "",
+        "baseUrl": "https://api.openai.com/v1",
+        "model": "gpt-4o",
+        "maxOutputTokens": 4096
+      }
+    ],
+    "defaultProvider": "anthropic-default"
+  },
+  "knowledge": {
+    "sources": []
+  },
+  "agent": {
+    "timeout": 60000,
+    "maxConcurrency": 3,
+    "sandbox": {
+      "enabled": true,
+      "workDir": "/tmp/pharos-sandbox"
+    }
+  },
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0"
+  }
+}

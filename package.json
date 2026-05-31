@@ -1,0 +1,41 @@
+{
+  "name": "pharos",
+  "version": "0.1.0",
+  "description": "Discord AI assistant with multi-LLM support and web management panel",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"pnpm dev:bot\" \"pnpm dev:server\" \"pnpm dev:web\"",
+    "dev:bot": "tsx watch src/bot/index.ts",
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:web": "vite dev --config web/vite.config.ts",
+    "build": "pnpm build:web && tsc",
+    "build:web": "vite build --config web/vite.config.ts",
+    "start": "node dist/index.js",
+    "lint": "eslint . --fix",
+    "test": "vitest"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
+    "cors": "^2.8.6",
+    "discord.js": "^14.26.4",
+    "express": "^5.2.1",
+    "openai": "^6.39.1",
+    "vue": "^3.5.35",
+    "vue-i18n": "^11.4.4",
+    "vue-router": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "concurrently": "^10.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
+  }
+}

@@ -1,0 +1,19 @@
+import { Router } from 'express';
+import type { ServerContext } from '../index.js';
+import { createKnowledgeRouter } from './knowledge.js';
+import { createProvidersRouter } from './providers.js';
+import { createStatusRouter } from './status.js';
+import { createConfigRouter } from './config.js';
+import { createHistoryRouter } from './history.js';
+
+export function createApiRouter(ctx: ServerContext): Router {
+  const router = Router();
+
+  router.use('/knowledge', createKnowledgeRouter(ctx));
+  router.use('/providers', createProvidersRouter(ctx));
+  router.use('/status', createStatusRouter(ctx));
+  router.use('/config', createConfigRouter(ctx));
+  router.use('/history', createHistoryRouter(ctx));
+
+  return router;
+}
