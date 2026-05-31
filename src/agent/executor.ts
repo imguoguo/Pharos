@@ -55,8 +55,24 @@ export class AgentExecutor {
 
     return new Promise((resolve) => {
       this.queue.push({ task, sources, onStep, resolve });
+      if (this.running >= this.maxConcurrency && onStep) {
+        const queuePos = this.queue.length;
+        onStep({
+          type: 'llm_call',
+          timestamp: new Date().toISOString(),
+          content: `Queued (position ${queuePos})`,
+        });
+      }
       this.processQueue();
     });
+  }
+
+  getQueueLength(): number {
+    return this.queue.length;
+  }
+
+  getRunningCount(): number {
+    return this.running;
   }
 
   private async processQueue(): Promise<void> {

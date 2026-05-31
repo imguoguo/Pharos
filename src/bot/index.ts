@@ -104,20 +104,32 @@ export class DiscordBot {
     const verbosity = this.getVerbosity();
     let progressMsg: DiscordMessage | null = null;
 
+    const queueLen = this.agent.getQueueLength();
+    const isQueued = this.agent.getRunningCount() >= this.appConfig.agent.maxConcurrency;
+
     if (verbosity !== 'silent') {
-      progressMsg = await message.reply('⏳ Thinking...');
+      const initMsg = isQueued
+        ? `⏱ Queued (position ${queueLen + 1})...`
+        : '⏳ Thinking...';
+      progressMsg = await message.reply(initMsg);
     } else {
       await message.react(REACTION_PROCESSING);
     }
 
     const startTime = Date.now();
     let stepCount = 0;
+    let wasQueued = isQueued;
 
     const onStep: StepCallback | undefined = verbosity === 'silent' ? undefined : async (step) => {
       if (!progressMsg) return;
       stepCount++;
       try {
-        const statusText = this.formatProgress(step, stepCount, verbosity);
+        if (wasQueued && step.content && !step.content.startsWith('Queued')) {
+          wasQueued = false;
+        }
+        const statusText = wasQueued && step.content?.startsWith('Queued')
+          ? `⏱ ${step.content}`
+          : this.formatProgress(step, stepCount, verbosity);
         await progressMsg.edit(statusText);
       } catch {
         // message may have been deleted

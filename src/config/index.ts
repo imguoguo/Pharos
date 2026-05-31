@@ -92,3 +92,19 @@ export function appendLog(level: string, message: string): void {
   const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}\n`;
   appendFileSync(logPath, line, 'utf-8');
 }
+
+export function readRecentLogs(count: number = 100): string[] {
+  ensureDirs();
+  const files = readdirSync(LOG_DIR).filter((f) => f.endsWith('.log')).sort().reverse();
+  const lines: string[] = [];
+  for (const file of files) {
+    if (lines.length >= count) break;
+    const content = readFileSync(join(LOG_DIR, file), 'utf-8');
+    const fileLines = content.trim().split('\n').reverse();
+    for (const line of fileLines) {
+      if (lines.length >= count) break;
+      lines.push(line);
+    }
+  }
+  return lines;
+}

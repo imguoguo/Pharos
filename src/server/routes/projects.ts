@@ -102,12 +102,15 @@ export function createProjectsRouter(ctx: ServerContext): Router {
     res.status(201).json({ source, fileCount: files.length });
   });
 
-  router.get('/:id/sources/:sourceId/progress', (req, res) => {
+  router.get('/:id/sources/:sourceId/progress', async (req, res) => {
     const project = ctx.config.projects.find((p) => p.id === req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     const source = project.sources.find((s) => s.id === req.params.sourceId);
     if (!source) return res.status(404).json({ error: 'Source not found' });
-    res.json({ source, progress: getSyncProgress(source.id) });
+    const progress = getSyncProgress(source.id);
+    const { readRecentLogs } = await import('../../config/index.js');
+    const logs = progress.lines.length > 0 ? progress.lines : readRecentLogs(100);
+    res.json({ source, progress: { ...progress, lines: logs } });
   });
 
   router.post('/:id/sources/:sourceId/sync', async (req, res) => {
