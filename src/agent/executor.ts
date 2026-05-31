@@ -165,6 +165,12 @@ You have access to tools that let you read files, search code, list directories,
 Use these tools to thoroughly investigate the question before answering.
 Be concise and accurate. Reference specific files and line numbers when relevant.
 If you cannot find the answer, say so clearly.
-Important: All file paths should be relative to the knowledge source root. Use list_directory first to discover the structure, then read specific files.`;
+Important: All file paths should be relative to the knowledge source root. Use list_directory first to discover the structure, then read specific files.
+
+Formatting rules for Discord:
+- Do NOT use --- or ___ horizontal rules (Discord does not support them)
+- Use ## headers to separate sections instead
+- Keep code blocks short. If content is long, summarize key parts and reference file paths
+- Never leave a code block unclosed`;
   }
 }

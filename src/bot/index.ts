@@ -141,13 +141,9 @@ export class DiscordBot {
 
       if (task.status === 'completed' && task.result) {
         if (progressMsg) {
-          await progressMsg.edit(task.result.slice(0, MAX_MESSAGE_LENGTH));
-          if (task.result.length > MAX_MESSAGE_LENGTH) {
-            await this.sendChunked(message, task.result.slice(MAX_MESSAGE_LENGTH), false);
-          }
-        } else {
-          await this.sendChunked(message, task.result, true);
+          await progressMsg.delete().catch(() => {});
         }
+        await this.sendChunked(message, task.result, true);
         await message.react(REACTION_DONE);
 
         const entry: ConversationEntry = {
@@ -222,21 +218,26 @@ export class DiscordBot {
   }
 
   private splitContent(content: string): string[] {
-    if (content.length <= MAX_MESSAGE_LENGTH) return [content];
+    const cleaned = content.replace(/^-{3,}$/gm, '').replace(/^_{3,}$/gm, '');
+    if (cleaned.length <= MAX_MESSAGE_LENGTH) return [cleaned];
 
     const chunks: string[] = [];
-    let remaining = content;
+    let remaining = cleaned;
     while (remaining.length > 0) {
       if (remaining.length <= MAX_MESSAGE_LENGTH) {
         chunks.push(remaining);
         break;
       }
 
-      const inCodeBlock = (remaining.slice(0, MAX_MESSAGE_LENGTH).match(/```/g) || []).length % 2 === 1;
+      const slice = remaining.slice(0, MAX_MESSAGE_LENGTH);
+      const inCodeBlock = (slice.match(/```/g) || []).length % 2 === 1;
 
       let splitAt = -1;
       if (!inCodeBlock) {
-        splitAt = remaining.lastIndexOf('\n\n', MAX_MESSAGE_LENGTH);
+        splitAt = remaining.lastIndexOf('\n## ', MAX_MESSAGE_LENGTH);
+        if (splitAt === -1 || splitAt < 200) {
+          splitAt = remaining.lastIndexOf('\n\n', MAX_MESSAGE_LENGTH);
+        }
         if (splitAt === -1 || splitAt < 200) {
           splitAt = remaining.lastIndexOf('\n', MAX_MESSAGE_LENGTH);
         }
@@ -250,6 +251,12 @@ export class DiscordBot {
         const closeIdx = remaining.indexOf('\n```', 100);
         if (inCodeBlock && closeIdx !== -1 && closeIdx < MAX_MESSAGE_LENGTH - 10) {
           splitAt = closeIdx + 4;
+        } else if (inCodeBlock) {
+          splitAt = remaining.lastIndexOf('\n', MAX_MESSAGE_LENGTH);
+          if (splitAt === -1 || splitAt < 200) splitAt = MAX_MESSAGE_LENGTH;
+          chunks.push(remaining.slice(0, splitAt) + '\n```');
+          remaining = '```\n' + remaining.slice(splitAt).trimStart();
+          continue;
         } else {
           splitAt = MAX_MESSAGE_LENGTH;
         }
