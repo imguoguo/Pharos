@@ -26,11 +26,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
 const { t } = useI18n();
+const toast = inject<any>('toast');
 
 const form = ref({
   token: '',
@@ -51,5 +52,6 @@ onMounted(async () => {
 
 async function save() {
   await api.put('/config/discord', form.value);
+  toast.success(t('common.success'));
 }
 </script>

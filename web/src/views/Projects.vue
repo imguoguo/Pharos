@@ -25,7 +25,7 @@
         <div class="project-section">
           <div class="section-header">
             <span class="section-title">{{ t('projects.channels') }}</span>
-            <button class="btn" @click="addChannel(project)">{{ t('projects.addChannel') }}</button>
+            <button class="btn" @click="openAddChannel(project)">{{ t('projects.addChannel') }}</button>
           </div>
           <div class="tag-list">
             <span class="tag" v-for="(ch, i) in project.channels" :key="i">
@@ -109,15 +109,30 @@
         </div>
       </div>
     </div>
+
+    <div v-if="addingChannel" class="modal-overlay" @click.self="addingChannel = null">
+      <div class="modal">
+        <div class="modal-header">{{ t('projects.addChannel') }}</div>
+        <div class="form-group">
+          <label class="form-label">Channel ID</label>
+          <input class="input" v-model="channelInput" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn" @click="addingChannel = null">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary" @click="saveChannel">{{ t('common.save') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
 const { t } = useI18n();
+const toast = inject<any>('toast');
 
 const projects = ref<any[]>([]);
 const showAdd = ref(false);
@@ -125,6 +140,8 @@ const editing = ref<string | null>(null);
 const form = ref({ name: '', description: '' });
 const addingSource = ref<string | null>(null);
 const sourceForm = ref({ name: '', type: 'directory', path: '' });
+const addingChannel = ref<string | null>(null);
+const channelInput = ref('');
 
 onMounted(async () => {
   await loadProjects();
@@ -153,19 +170,29 @@ async function saveProject() {
   }
   await loadProjects();
   closeModal();
+  toast.success(t('common.success'));
 }
 
 async function deleteProject(id: string) {
   await api.delete(`/projects/${id}`);
   await loadProjects();
+  toast.success(t('common.success'));
 }
 
-async function addChannel(project: any) {
-  const channel = prompt('Channel ID:');
-  if (!channel) return;
-  const channels = [...project.channels, channel];
-  await api.put(`/projects/${project.id}`, { channels });
+function openAddChannel(project: any) {
+  addingChannel.value = project.id;
+  channelInput.value = '';
+}
+
+async function saveChannel() {
+  if (!addingChannel.value || !channelInput.value) return;
+  const project = projects.value.find((p: any) => p.id === addingChannel.value);
+  if (!project) return;
+  const channels = [...project.channels, channelInput.value];
+  await api.put(`/projects/${addingChannel.value}`, { channels });
+  addingChannel.value = null;
   await loadProjects();
+  toast.success(t('common.success'));
 }
 
 async function removeChannel(project: any, index: number) {
@@ -184,11 +211,13 @@ async function saveSource() {
   await api.post(`/projects/${addingSource.value}/sources`, sourceForm.value);
   addingSource.value = null;
   await loadProjects();
+  toast.success(t('common.success'));
 }
 
 async function deleteSource(project: any, sourceId: string) {
   await api.delete(`/projects/${project.id}/sources/${sourceId}`);
   await loadProjects();
+  toast.success(t('common.success'));
 }
 </script>
 

@@ -100,11 +100,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
 const { t } = useI18n();
+const toast = inject<any>('toast');
 
 const providers = ref<any[]>([]);
 const defaultProvider = ref('');
@@ -152,16 +153,19 @@ async function saveProvider() {
   }
   await loadProviders();
   closeModal();
+  toast.success(t('common.success'));
 }
 
 async function deleteProvider(id: string) {
   await api.delete(`/providers/${id}`);
   await loadProviders();
+  toast.success(t('common.success'));
 }
 
 async function setDefault(id: string) {
   await api.put('/providers/default', { providerId: id });
   await loadProviders();
+  toast.success(t('common.success'));
 }
 
 async function testProvider(id: string) {
@@ -169,9 +173,9 @@ async function testProvider(id: string) {
   const result = await api.post(`/providers/${id}/test`, {});
   testingId.value = null;
   if (result?.success) {
-    alert(t('providers.testSuccess'));
+    toast.success(t('providers.testSuccess'));
   } else {
-    alert(`${t('providers.testFailed')}: ${result?.error}`);
+    toast.error(`${t('providers.testFailed')}: ${result?.error}`);
   }
 }
 
@@ -196,6 +200,9 @@ async function fetchModels() {
   });
   fetchingModels.value = false;
   availableModels.value = result?.models || [];
+  if (result?.error) {
+    toast.error(result.error);
+  }
 }
 </script>
 

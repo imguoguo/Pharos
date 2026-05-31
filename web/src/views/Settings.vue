@@ -35,11 +35,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
 const { t } = useI18n();
+const toast = inject<any>('toast');
 
 const newPassword = ref('');
 const agentForm = ref({ timeout: 60000, maxConcurrency: 3, sandbox: true });
@@ -59,7 +60,7 @@ async function changePassword() {
   if (!newPassword.value) return;
   await api.put('/config/auth', { password: newPassword.value });
   newPassword.value = '';
-  alert(t('common.success'));
+  toast.success(t('common.success'));
 }
 
 async function saveAgent() {
@@ -68,7 +69,7 @@ async function saveAgent() {
     maxConcurrency: agentForm.value.maxConcurrency,
     sandbox: { enabled: agentForm.value.sandbox },
   });
-  alert(t('common.success'));
+  toast.success(t('common.success'));
 }
 </script>
 

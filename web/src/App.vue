@@ -1,5 +1,5 @@
 <template>
-  <div class="app-layout" :data-theme="theme">
+  <div :data-theme="theme">
     <template v-if="!authenticated">
       <div class="login-page">
         <div class="login-card">
@@ -22,45 +22,62 @@
       </div>
     </template>
     <template v-else>
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <h1>Pharos</h1>
-        </div>
-        <nav class="sidebar-nav">
-          <router-link
-            v-for="item in navItems"
-            :key="item.path"
-            :to="item.path"
-            class="nav-item"
-            active-class="active"
-          >
-            <span>{{ t(item.label) }}</span>
-          </router-link>
-        </nav>
-        <div class="sidebar-footer">
-          <div class="footer-controls">
-            <button class="theme-toggle" @click="toggleTheme">
-              <span>{{ theme === 'dark' ? t('theme.light') : t('theme.dark') }}</span>
-            </button>
-            <button class="lang-toggle" @click="toggleLang">
-              <span>{{ locale === 'zh-CN' ? 'EN' : '中' }}</span>
-            </button>
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <h1>Pharos</h1>
           </div>
-        </div>
-      </aside>
-      <main class="main-content">
-        <router-view />
-      </main>
+          <nav class="sidebar-nav">
+            <router-link
+              v-for="item in navItems"
+              :key="item.path"
+              :to="item.path"
+              class="nav-item"
+              active-class="active"
+            >
+              <span>{{ t(item.label) }}</span>
+            </router-link>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="footer-controls">
+              <button class="theme-toggle" @click="toggleTheme">
+                <span>{{ theme === 'dark' ? t('theme.light') : t('theme.dark') }}</span>
+              </button>
+              <button class="lang-toggle" @click="toggleLang">
+                <span>{{ locale === 'zh-CN' ? 'EN' : '中' }}</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+        <main class="main-content">
+          <router-view />
+        </main>
+      </div>
     </template>
+
+    <div class="toast-container">
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
+        class="toast"
+        :class="`toast-${toast.type}`"
+      >
+        {{ toast.message }}
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, provide } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from './api.js';
+import { useToast } from './composables/useToast.js';
 
 const { t, locale } = useI18n();
+const { toasts, success, error, info } = useToast();
+
+provide('toast', { success, error, info });
 
 const theme = ref<'light' | 'dark'>(
   (localStorage.getItem('pharos-theme') as 'light' | 'dark') || 'dark'
