@@ -114,6 +114,7 @@ export default {
     duration: 'Duration',
     time: 'Time',
     empty: 'No conversations in this channel',
+    agentSteps: 'Agent Exploration Steps',
   },
   settings: {
     title: 'System Settings',

@@ -114,6 +114,7 @@ export default {
     duration: '耗时',
     time: '时间',
     empty: '该频道暂无对话记录',
+    agentSteps: 'Agent 探索过程',
   },
   settings: {
     title: '系统设置',

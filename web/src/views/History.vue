@@ -49,15 +49,32 @@
     </div>
 
     <div v-if="selected" class="modal-overlay" @click.self="selected = null">
-      <div class="modal" style="max-width: 700px;">
+      <div class="modal" style="max-width: 800px;">
         <div class="modal-header">{{ selected.username }} - {{ new Date(selected.timestamp).toLocaleString() }}</div>
         <div class="form-group">
           <label class="form-label"><span class="mdi mdi-comment-question"></span> {{ t('history.query') }}</label>
           <div class="detail-block">{{ selected.query }}</div>
         </div>
+
+        <div class="form-group" v-if="selected.steps?.length">
+          <label class="form-label"><span class="mdi mdi-transit-connection-variant"></span> {{ t('history.agentSteps') }} ({{ selected.steps.length }})</label>
+          <div class="steps-container">
+            <div v-for="(step, i) in selected.steps" :key="i" class="step-item" :class="`step-${step.type}`">
+              <div class="step-header">
+                <span class="step-icon mdi" :class="stepIcon(step.type)"></span>
+                <span class="step-type">{{ stepLabel(step.type) }}</span>
+                <span v-if="step.toolName" class="step-tool">{{ step.toolName }}</span>
+                <span v-if="step.providerId" class="step-provider">{{ step.providerId }}</span>
+                <span class="step-time">{{ formatTime(step.timestamp) }}</span>
+              </div>
+              <div class="step-content" v-if="step.content">{{ truncate(step.content, step.type === 'tool_result' ? 500 : 1000) }}</div>
+            </div>
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="form-label"><span class="mdi mdi-comment-check"></span> {{ t('history.response') }}</label>
-          <div class="detail-block" style="max-height: 400px; overflow-y: auto; white-space: pre-wrap;">{{ selected.response }}</div>
+          <div class="detail-block" style="max-height: 300px; overflow-y: auto; white-space: pre-wrap;">{{ selected.response }}</div>
         </div>
         <div class="modal-actions">
           <button class="btn" @click="selected = null">{{ t('common.cancel') }}</button>
@@ -91,6 +108,33 @@ async function selectChannel(channelId: string) {
   selectedChannel.value = channelId;
   const data = await api.get(`/history/channels/${channelId}`);
   entries.value = data?.entries || [];
+}
+
+function stepIcon(type: string): string {
+  switch (type) {
+    case 'llm_call': return 'mdi-brain';
+    case 'tool_call': return 'mdi-wrench';
+    case 'tool_result': return 'mdi-clipboard-text';
+    default: return 'mdi-circle-small';
+  }
+}
+
+function stepLabel(type: string): string {
+  switch (type) {
+    case 'llm_call': return 'LLM';
+    case 'tool_call': return 'Tool Call';
+    case 'tool_result': return 'Result';
+    default: return type;
+  }
+}
+
+function formatTime(ts: string): string {
+  return new Date(ts).toLocaleTimeString();
+}
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max) + '...';
 }
 </script>
 
@@ -143,4 +187,61 @@ async function selectChannel(channelId: string) {
   margin-bottom: 12px;
   opacity: 0.5;
 }
+.steps-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.step-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.step-item:last-child {
+  border-bottom: none;
+}
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.step-icon {
+  font-size: 14px;
+}
+.step-type {
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.step-tool {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--accent-blue);
+}
+.step-provider {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.step-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.step-content {
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text-secondary);
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.step-llm_call .step-icon { color: var(--accent-blue); }
+.step-tool_call .step-icon { color: var(--accent-yellow); }
+.step-tool_result .step-icon { color: #22c55e; }
 </style>

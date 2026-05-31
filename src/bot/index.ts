@@ -129,6 +129,7 @@ export class DiscordBot {
           tokensUsed: 0,
           duration: Date.now() - startTime,
           timestamp: new Date().toISOString(),
+          steps: task.steps,
         };
         appendHistory(entry);
       } else {
