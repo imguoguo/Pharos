@@ -33,12 +33,13 @@ export async function handleAdminCommand(
   if (!trimmed) return null;
 
   const parts = trimmed.split(/\s+/);
-  const cmd = parts[0].toLowerCase();
+  const rawCmd = parts[0].toLowerCase();
+  const cmd = rawCmd.startsWith('/') ? rawCmd.slice(1) : rawCmd;
 
   if (cmd === 'help') {
     return {
       reply: [
-        '**Pharos Admin Commands**',
+        '**Pharos Commands**',
         '`help` — show this list',
         '`project create <name>` — create a new project',
         '`project list` — list all projects',

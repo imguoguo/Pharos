@@ -35,20 +35,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, inject } from 'vue';
+import { ref, onMounted, onUnmounted, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
 const { t } = useI18n();
 const toast = inject<any>('toast');
 
-const status = ref<Record<string, any>>({});
+const status = ref<Record<string, any>>();
 const loading = ref(true);
 const restarting = ref(false);
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-onMounted(async () => {
+async function fetchStatus() {
   status.value = await api.get('/status') || {};
   loading.value = false;
+}
+
+onMounted(() => {
+  fetchStatus();
+  pollTimer = setInterval(fetchStatus, 5000);
+});
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer);
 });
 
 async function restartBot() {

@@ -14,11 +14,17 @@ export function createProvidersRouter(ctx: ServerContext): Router {
       ...p,
       apiKey: p.apiKey ? '***' : '',
     }));
-    res.json({ providers, defaultProvider: ctx.config.llm.defaultProvider });
+    res.json({ providers });
   });
 
   router.post('/', (req, res) => {
-    const provider = { ...req.body, id: randomUUID() };
+    const maxPriority = ctx.config.llm.providers.reduce((max, p) => Math.max(max, p.priority ?? 0), 0);
+    const provider = {
+      ...req.body,
+      id: randomUUID(),
+      enabled: req.body.enabled ?? true,
+      priority: req.body.priority ?? maxPriority + 1,
+    };
     ctx.config.llm.providers.push(provider);
     initProviders(ctx.config.llm.providers);
     saveConfig();
@@ -45,14 +51,25 @@ export function createProvidersRouter(ctx: ServerContext): Router {
     res.status(204).end();
   });
 
-  router.put('/default', (req, res) => {
-    const { providerId } = req.body;
-    if (!ctx.config.llm.providers.find((p) => p.id === providerId)) {
-      return res.status(400).json({ error: 'Provider not found' });
-    }
-    ctx.config.llm.defaultProvider = providerId;
+  router.put('/:id/toggle', (req, res) => {
+    const idx = ctx.config.llm.providers.findIndex((p) => p.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    ctx.config.llm.providers[idx].enabled = !ctx.config.llm.providers[idx].enabled;
+    initProviders(ctx.config.llm.providers);
     saveConfig();
-    res.json({ defaultProvider: providerId });
+    res.json({ ...ctx.config.llm.providers[idx], apiKey: '***' });
+  });
+
+  router.put('/reorder', (req, res) => {
+    const { order } = req.body;
+    if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of ids' });
+    for (let i = 0; i < order.length; i++) {
+      const provider = ctx.config.llm.providers.find((p) => p.id === order[i]);
+      if (provider) provider.priority = i;
+    }
+    initProviders(ctx.config.llm.providers);
+    saveConfig();
+    res.json({ success: true });
   });
 
   router.post('/:id/test', async (req, res) => {
@@ -73,7 +90,7 @@ export function createProvidersRouter(ctx: ServerContext): Router {
     try {
       if (type === 'anthropic') {
         const client = new Anthropic({ apiKey });
-        const response = await client.messages.create({
+        await client.messages.create({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 10,
           messages: [{ role: 'user', content: 'hi' }],
@@ -81,7 +98,7 @@ export function createProvidersRouter(ctx: ServerContext): Router {
         res.json({ success: true, message: 'Connected' });
       } else {
         const client = new OpenAI({ apiKey, baseURL: baseUrl });
-        const models = await client.models.list();
+        await client.models.list();
         res.json({ success: true, message: 'Connected' });
       }
     } catch (err: unknown) {

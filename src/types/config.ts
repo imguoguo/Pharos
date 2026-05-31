@@ -14,11 +14,12 @@ export interface LLMProviderConfig {
   model: string;
   maxTokens?: number;
   maxOutputTokens?: number;
+  enabled: boolean;
+  priority: number;
 }
 
 export interface LLMConfig {
   providers: LLMProviderConfig[];
-  defaultProvider: string;
 }
 
 export type SourceSyncStatus = 'idle' | 'syncing' | 'success' | 'error';

@@ -1,20 +1,17 @@
 import { randomUUID } from 'crypto';
 import type { AgentTask } from '../types/agent.js';
 import type { KnowledgeSource } from '../types/config.js';
-import type { LLMProvider, Message, ToolResult } from '../types/llm.js';
+import type { Message, ToolResult } from '../types/llm.js';
+import { chatWithFallback } from '../llm/index.js';
 import { createAgentTools, type AgentTool } from './tools.js';
 import { appendLog } from '../config/index.js';
 
 interface AgentExecutorOptions {
-  provider: LLMProvider;
-  sources: KnowledgeSource[];
   timeout: number;
   maxConcurrency: number;
 }
 
 export class AgentExecutor {
-  private provider: LLMProvider;
-  private tools: AgentTool[];
   private timeout: number;
   private maxConcurrency: number;
   private running = 0;
@@ -25,14 +22,8 @@ export class AgentExecutor {
   }> = [];
 
   constructor(options: AgentExecutorOptions) {
-    this.provider = options.provider;
-    this.tools = createAgentTools(options.sources);
     this.timeout = options.timeout;
     this.maxConcurrency = options.maxConcurrency;
-  }
-
-  updateProvider(provider: LLMProvider): void {
-    this.provider = provider;
   }
 
   async execute(
@@ -101,11 +92,7 @@ export class AgentExecutor {
         return 'The query timed out. Here is what I found so far based on my exploration.';
       }
 
-      if (!this.provider) {
-        return 'No LLM provider configured. Please set up a provider in the web panel.';
-      }
-
-      const response = await this.provider.chat(messages, toolDefs);
+      const response = await chatWithFallback(messages, toolDefs);
 
       if (!response.toolCalls?.length) {
         return response.content;

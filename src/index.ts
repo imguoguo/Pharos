@@ -1,11 +1,10 @@
 import { loadConfig, appendLog } from './config/index.js';
-import { initProviders, getProvider } from './llm/index.js';
+import { initProviders } from './llm/index.js';
 import { AgentExecutor } from './agent/executor.js';
 import { DiscordBot } from './bot/index.js';
 import { startServer } from './server/index.js';
 import { refreshSchedules } from './services/scheduler.js';
 
-// Allow self-signed / corporate proxy certificates
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 async function main() {
@@ -15,13 +14,7 @@ async function main() {
   const config = loadConfig();
   initProviders(config.llm.providers);
 
-  const defaultProvider = config.llm.defaultProvider
-    ? getProvider(config.llm.defaultProvider)
-    : null;
-
   const agent = new AgentExecutor({
-    provider: defaultProvider!,
-    sources: config.projects.flatMap((p) => p.sources),
     timeout: config.agent.timeout,
     maxConcurrency: config.agent.maxConcurrency,
   });

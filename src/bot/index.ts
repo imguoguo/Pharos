@@ -11,7 +11,7 @@ const REACTION_DONE = '✅';
 const REACTION_ERROR = '❌';
 const MAX_MESSAGE_LENGTH = 2000;
 
-const ADMIN_PREFIXES = ['project ', 'repo ', 'source ', 'help'];
+const ADMIN_PREFIXES = ['project ', 'repo ', 'source ', 'help', '/help', '/project', '/repo', '/source'];
 
 export class DiscordBot {
   private client: Client;

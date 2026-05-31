@@ -6,6 +6,7 @@ export function createStatusRouter(ctx: ServerContext): Router {
 
   router.get('/', (_req, res) => {
     const botStatus = ctx.bot.getStatus();
+    const enabledProviders = ctx.config.llm.providers.filter((p) => p.enabled);
     res.json({
       bot: botStatus,
       agent: {
@@ -18,7 +19,7 @@ export function createStatusRouter(ctx: ServerContext): Router {
       },
       providers: {
         total: ctx.config.llm.providers.length,
-        default: ctx.config.llm.defaultProvider,
+        enabled: enabledProviders.length,
       },
     });
   });
