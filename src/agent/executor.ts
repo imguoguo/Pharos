@@ -1,10 +1,11 @@
 import { randomUUID } from 'crypto';
 import type { AgentTask, AgentStep } from '../types/agent.js';
-import type { KnowledgeSource, ProgressVerbosity } from '../types/config.js';
+import type { KnowledgeSource } from '../types/config.js';
 import type { Message, ToolResult } from '../types/llm.js';
 import { chatWithFallback } from '../llm/index.js';
 import { createAgentTools, type AgentTool } from './tools.js';
 import { appendLog } from '../config/index.js';
+import { readIndex } from '../services/indexer.js';
 
 export type StepCallback = (step: AgentStep) => void;
 
@@ -68,7 +69,7 @@ export class AgentExecutor {
 
     try {
       const tools = createAgentTools(item.sources);
-      const result = await this.runAgent(item.task.query, tools, item.task.steps, item.onStep);
+      const result = await this.runAgent(item.task.query, tools, item.task.steps, item.onStep, item.sources);
       item.task.status = 'completed';
       item.task.result = result;
       item.task.completedAt = new Date().toISOString();
@@ -84,10 +85,11 @@ export class AgentExecutor {
     }
   }
 
-  private async runAgent(query: string, tools: AgentTool[], steps: AgentStep[], onStep?: StepCallback): Promise<string> {
+  private async runAgent(query: string, tools: AgentTool[], steps: AgentStep[], onStep?: StepCallback, sources?: KnowledgeSource[]): Promise<string> {
     const systemPrompt = this.buildSystemPrompt();
+    const indexContext = this.buildIndexContext(sources);
     const messages: Message[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: systemPrompt + indexContext },
       { role: 'user', content: query },
     ];
 
@@ -168,11 +170,25 @@ Use these tools to thoroughly investigate the question before answering.
 Be concise and accurate. Reference specific files and line numbers when relevant.
 If you cannot find the answer, say so clearly.
 Important: All file paths should be relative to the knowledge source root. Use list_directory first to discover the structure, then read specific files.
+IMPORTANT: Before exploring a source from scratch, check if a file named "<sourceId>-index.md" exists in the parent directory of the source path. If it exists, read it first — it contains a pre-built index of the repository structure and key files, which will save you many exploration steps.
 
 Formatting rules for Discord:
 - Do NOT use --- or ___ horizontal rules (Discord does not support them)
 - Use ## headers to separate sections instead
 - Keep code blocks short. If content is long, summarize key parts and reference file paths
 - Never leave a code block unclosed`;
+  }
+
+  private buildIndexContext(sources?: KnowledgeSource[]): string {
+    if (!sources?.length) return '';
+    const indexes: string[] = [];
+    for (const source of sources) {
+      const index = readIndex(source);
+      if (index) {
+        indexes.push(`\n\n## Index for "${source.name}":\n${index.slice(0, 6000)}`);
+      }
+    }
+    if (indexes.length === 0) return '';
+    return `\n\nThe following pre-built indexes are available. Use them to quickly locate relevant files instead of exploring from scratch:${indexes.join('')}`;
   }
 }

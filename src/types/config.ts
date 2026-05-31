@@ -39,6 +39,7 @@ export interface KnowledgeSource {
   syncIntervalMinutes?: number;
   lastSyncAt?: string;
   nextSyncAt?: string;
+  lastIndexedAt?: string;
 }
 
 export interface Project {

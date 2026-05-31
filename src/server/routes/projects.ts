@@ -7,6 +7,7 @@ import { saveConfig } from '../../config/index.js';
 import type { Project, KnowledgeSource } from '../../types/config.js';
 import { createGitSource, getSyncProgress, syncGitSource } from '../../services/git.js';
 import { scheduleSource } from '../../services/scheduler.js';
+import { generateIndex, readIndex, writeIndex } from '../../services/indexer.js';
 import { randomUUID } from 'crypto';
 
 const UPLOADS_DIR = resolve(process.cwd(), 'data', 'uploads');
@@ -118,6 +119,35 @@ export function createProjectsRouter(ctx: ServerContext): Router {
 
     void syncGitSource(ctx.config, project, source).catch(() => undefined);
     res.status(202).json(source);
+  });
+
+  router.get('/:id/sources/:sourceId/index', (req, res) => {
+    const project = ctx.config.projects.find((p) => p.id === req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const source = project.sources.find((s) => s.id === req.params.sourceId);
+    if (!source) return res.status(404).json({ error: 'Source not found' });
+    const content = readIndex(source);
+    res.json({ content: content || '', lastIndexedAt: source.lastIndexedAt || null });
+  });
+
+  router.put('/:id/sources/:sourceId/index', (req, res) => {
+    const project = ctx.config.projects.find((p) => p.id === req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const source = project.sources.find((s) => s.id === req.params.sourceId);
+    if (!source) return res.status(404).json({ error: 'Source not found' });
+    writeIndex(source, req.body.content || '');
+    source.lastIndexedAt = new Date().toISOString();
+    saveConfig();
+    res.json({ success: true });
+  });
+
+  router.post('/:id/sources/:sourceId/reindex', (req, res) => {
+    const project = ctx.config.projects.find((p) => p.id === req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const source = project.sources.find((s) => s.id === req.params.sourceId);
+    if (!source) return res.status(404).json({ error: 'Source not found' });
+    void generateIndex(ctx.config, project, source).catch(() => undefined);
+    res.status(202).json({ message: 'Indexing started' });
   });
 
   // --- source CRUD ---

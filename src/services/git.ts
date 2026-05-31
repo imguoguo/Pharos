@@ -4,6 +4,7 @@ import { mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { AppConfig, KnowledgeSource, Project } from '../types/config.js';
 import { appendLog, getReposDir, saveConfig } from '../config/index.js';
+import { generateIndex } from './indexer.js';
 
 interface SyncProgress {
   status: 'idle' | 'syncing' | 'success' | 'error';
@@ -70,6 +71,10 @@ export async function syncGitSource(config: AppConfig, project: Project, source:
     source.nextSyncAt = getNextSyncAt(source.syncIntervalMinutes);
     setProgress(source.id, 'success', [`Sync completed at ${now}`]);
     appendLog('info', `Git sync completed: ${project.name}/${source.name}`);
+
+    void generateIndex(config, project, source).catch((err) => {
+      appendLog('warn', `Index generation failed for ${source.name}: ${err}`);
+    });
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     source.syncStatus = 'error';
