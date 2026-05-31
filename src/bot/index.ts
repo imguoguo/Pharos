@@ -224,7 +224,7 @@ export class DiscordBot {
       if (i === 0 && asReply) {
         await message.reply(chunks[i]);
       } else {
-        await message.channel.send(chunks[i]);
+        await (message.channel as any).send(chunks[i]);
       }
     }
   }

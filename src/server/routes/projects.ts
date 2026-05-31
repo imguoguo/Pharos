@@ -14,8 +14,8 @@ const UPLOADS_DIR = resolve(process.cwd(), 'data', 'uploads');
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    const projectId = req.params.id;
-    const keepStructure = req.query.keepStructure !== 'false';
+    const projectId = req.params.id as string;
+    const keepStructure = req.query.keepStructure as string !== 'false';
     const relPath = (file as any).webkitRelativePath || file.originalname;
     const relDir = keepStructure
       ? join(UPLOADS_DIR, projectId, relPath.split('/').slice(0, -1).join('/'))
@@ -87,7 +87,7 @@ export function createProjectsRouter(ctx: ServerContext): Router {
     if (!files?.length) return res.status(400).json({ error: 'No files uploaded' });
 
     const folderName = req.body.name || files[0].originalname.split('/')[0] || 'upload';
-    const basePath = join(UPLOADS_DIR, req.params.id).replace(/\\/g, '/');
+    const basePath = join(UPLOADS_DIR, req.params.id as string).replace(/\\/g, '/');
 
     const source: KnowledgeSource = {
       id: randomUUID(),

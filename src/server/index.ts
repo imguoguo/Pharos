@@ -1,10 +1,9 @@
 import express from 'express';
-import cors from 'cors';
 import { resolve } from 'path';
 import type { AppConfig } from '../types/config.js';
 import { createApiRouter } from './routes/index.js';
 import { createAuthMiddleware } from './routes/auth.js';
-import { createRateLimiter, createHealthRouter } from './middleware.js';
+import { createRateLimiter, createBruteForceProtection, createSecurityHeaders, createHealthRouter } from './middleware.js';
 import type { AgentExecutor } from '../agent/executor.js';
 import type { DiscordBot } from '../bot/index.js';
 
@@ -17,9 +16,12 @@ export interface ServerContext {
 export function createServer(ctx: ServerContext): express.Application {
   const app = express();
 
-  app.use(cors());
-  app.use(express.json());
+  app.set('trust proxy', 1);
+
+  app.use(createSecurityHeaders());
+  app.use(express.json({ limit: '1mb' }));
   app.use(createRateLimiter());
+  app.use(createBruteForceProtection());
 
   app.use(createHealthRouter());
 
@@ -28,8 +30,11 @@ export function createServer(ctx: ServerContext): express.Application {
 
   app.use('/api', createApiRouter(ctx));
 
-  const webDist = resolve(process.cwd(), 'dist/web');
-  app.use(express.static(webDist));
+  const webDist = resolve(process.cwd(), 'dist/public');
+  app.use(express.static(webDist, {
+    maxAge: '1d',
+    etag: true,
+  }));
   app.get('/{*splat}', (_req, res) => {
     res.sendFile(resolve(webDist, 'index.html'));
   });
