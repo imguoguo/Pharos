@@ -92,7 +92,10 @@ export class DiscordBot {
     }
 
     const project = this.findProjectForChannel(message.channelId);
-    if (!project) return;
+    if (!project) {
+      await message.reply('This channel is not linked to any project. Use `help` to see available commands.');
+      return;
+    }
 
     await message.react(REACTION_PROCESSING);
     const startTime = Date.now();
