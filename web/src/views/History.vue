@@ -41,7 +41,16 @@
             </tr>
           </tbody>
         </table>
-        <div v-else class="empty-state" style="padding: 40px;">
+        <div class="pagination" v-if="totalPages > 1">
+          <button class="btn btn-sm" :disabled="page <= 1" @click="goPage(page - 1)">
+            <span class="mdi mdi-chevron-left"></span>
+          </button>
+          <span class="page-info">{{ page }} / {{ totalPages }}</span>
+          <button class="btn btn-sm" :disabled="page >= totalPages" @click="goPage(page + 1)">
+            <span class="mdi mdi-chevron-right"></span>
+          </button>
+        </div>
+        <div v-if="entries.length === 0" class="empty-state" style="padding: 40px;">
           <span class="mdi mdi-message-text-outline" style="font-size: 32px; opacity: 0.5;"></span>
           <p>{{ t('history.empty') }}</p>
         </div>
@@ -85,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api } from '../api.js';
 
@@ -95,6 +104,10 @@ const channels = ref<string[]>([]);
 const selectedChannel = ref<string | null>(null);
 const entries = ref<any[]>([]);
 const selected = ref<any>(null);
+const page = ref(1);
+const total = ref(0);
+const pageSize = 20;
+const totalPages = computed(() => Math.ceil(total.value / pageSize));
 
 onMounted(async () => {
   const data = await api.get('/history/channels');
@@ -106,8 +119,19 @@ onMounted(async () => {
 
 async function selectChannel(channelId: string) {
   selectedChannel.value = channelId;
-  const data = await api.get(`/history/channels/${channelId}`);
+  page.value = 1;
+  await fetchPage();
+}
+
+async function fetchPage() {
+  const data = await api.get(`/history/channels/${selectedChannel.value}?page=${page.value}&limit=${pageSize}`);
   entries.value = data?.entries || [];
+  total.value = data?.total || 0;
+}
+
+async function goPage(p: number) {
+  page.value = p;
+  await fetchPage();
 }
 
 function stepIcon(type: string): string {
@@ -244,4 +268,22 @@ function truncate(text: string, max: number): string {
 .step-llm_call .step-icon { color: var(--accent-blue); }
 .step-tool_call .step-icon { color: var(--accent-yellow); }
 .step-tool_result .step-icon { color: #22c55e; }
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0 4px;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.page-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 60px;
+  text-align: center;
+}
 </style>
