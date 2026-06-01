@@ -1,8 +1,3 @@
-export interface Message {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
 export interface ToolCall {
   id: string;
   name: string;
@@ -13,6 +8,13 @@ export interface ToolResult {
   id: string;
   content: string;
   error?: boolean;
+}
+
+export interface Message {
+  role: 'system' | 'user' | 'assistant' | 'tool_results';
+  content: string;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
 }
 
 export interface LLMResponse {

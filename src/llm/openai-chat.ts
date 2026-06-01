@@ -20,13 +20,36 @@ export class OpenAIChatProvider implements LLMProvider {
   }
 
   async chat(messages: Message[], tools?: ToolDefinition[]): Promise<LLMResponse> {
+    const chatMessages: OpenAI.ChatCompletionMessageParam[] = [];
+
+    for (const m of messages) {
+      if (m.role === 'assistant' && m.toolCalls?.length) {
+        chatMessages.push({
+          role: 'assistant',
+          content: m.content || null,
+          tool_calls: m.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: 'function' as const,
+            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+          })),
+        });
+      } else if (m.role === 'tool_results' && m.toolResults?.length) {
+        for (const r of m.toolResults) {
+          chatMessages.push({
+            role: 'tool',
+            tool_call_id: r.id,
+            content: r.content,
+          });
+        }
+      } else {
+        chatMessages.push({ role: m.role as 'system' | 'user' | 'assistant', content: m.content });
+      }
+    }
+
     const params: OpenAI.ChatCompletionCreateParams = {
       model: this.model,
       max_tokens: this.maxTokens,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+      messages: chatMessages,
     };
 
     if (tools?.length) {

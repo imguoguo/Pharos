@@ -132,7 +132,7 @@ export class AgentExecutor {
         return response.content;
       }
 
-      messages.push({ role: 'assistant', content: response.content || '' });
+      messages.push({ role: 'assistant', content: response.content || '', toolCalls: response.toolCalls });
 
       const results: ToolResult[] = [];
       for (const call of response.toolCalls) {
@@ -171,8 +171,9 @@ export class AgentExecutor {
       }
 
       messages.push({
-        role: 'user',
-        content: results.map((r) => `[Tool ${r.id}]: ${r.content}`).join('\n\n'),
+        role: 'tool_results',
+        content: '',
+        toolResults: results,
       });
     }
 

@@ -20,10 +20,33 @@ export class OpenAIResponsesProvider implements LLMProvider {
   }
 
   async chat(messages: Message[], tools?: ToolDefinition[]): Promise<LLMResponse> {
-    const input: OpenAI.Responses.ResponseInput = messages.map((m) => ({
-      role: m.role === 'system' ? ('developer' as const) : (m.role as 'user' | 'assistant'),
-      content: m.content,
-    }));
+    const input: OpenAI.Responses.ResponseInput = [];
+
+    for (const m of messages) {
+      if (m.role === 'assistant' && m.toolCalls?.length) {
+        for (const tc of m.toolCalls) {
+          input.push({
+            type: 'function_call',
+            call_id: tc.id,
+            name: tc.name,
+            arguments: JSON.stringify(tc.arguments),
+          } as any);
+        }
+      } else if (m.role === 'tool_results' && m.toolResults?.length) {
+        for (const r of m.toolResults) {
+          input.push({
+            type: 'function_call_output',
+            call_id: r.id,
+            output: r.content,
+          } as any);
+        }
+      } else {
+        input.push({
+          role: m.role === 'system' ? ('developer' as const) : (m.role as 'user' | 'assistant'),
+          content: m.content,
+        });
+      }
+    }
 
     const params: OpenAI.Responses.ResponseCreateParams = {
       model: this.model,

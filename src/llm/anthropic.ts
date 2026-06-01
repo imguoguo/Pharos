@@ -26,12 +26,32 @@ export class AnthropicProvider implements LLMProvider {
 
   async chat(messages: Message[], tools?: ToolDefinition[]): Promise<LLMResponse> {
     const systemMessage = messages.find((m) => m.role === 'system');
-    const chatMessages = messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }));
+    const chatMessages: Anthropic.MessageParam[] = [];
+
+    for (const m of messages) {
+      if (m.role === 'system') continue;
+
+      if (m.role === 'assistant' && m.toolCalls?.length) {
+        const content: Anthropic.ContentBlockParam[] = [];
+        if (m.content) {
+          content.push({ type: 'text', text: m.content });
+        }
+        for (const tc of m.toolCalls) {
+          content.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.arguments });
+        }
+        chatMessages.push({ role: 'assistant', content });
+      } else if (m.role === 'tool_results' && m.toolResults?.length) {
+        const content: Anthropic.ToolResultBlockParam[] = m.toolResults.map((r) => ({
+          type: 'tool_result' as const,
+          tool_use_id: r.id,
+          content: r.content,
+          is_error: r.error || false,
+        }));
+        chatMessages.push({ role: 'user', content });
+      } else {
+        chatMessages.push({ role: m.role as 'user' | 'assistant', content: m.content });
+      }
+    }
 
     const params: Anthropic.MessageCreateParams = {
       model: this.model,
