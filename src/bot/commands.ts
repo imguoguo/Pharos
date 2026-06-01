@@ -10,7 +10,7 @@ export interface CommandResult {
 
 function isAdmin(userId: string, roleIds: string[], config: AppConfig): boolean {
   if (!config.discord.adminRoles.length) return false;
-  return config.discord.adminRoles.some((r) => roleIds.includes(r));
+  return config.discord.adminRoles.some((r) => r === userId || roleIds.includes(r));
 }
 
 function findProject(config: AppConfig, nameOrId: string): Project | undefined {

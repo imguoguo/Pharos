@@ -70,6 +70,7 @@ export class DiscordBot {
 
     const query = message.content
       .replace(new RegExp(`<@!?${this.client.user.id}>`, 'g'), '')
+      .replace(/<@&\d+>/g, '')
       .trim();
 
     if (!query) return;
