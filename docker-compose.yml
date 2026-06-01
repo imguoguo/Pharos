@@ -2,9 +2,8 @@ services:
   pharos:
     build: .
     ports:
-      - "3000:3000"
+      - "2468:2468"
     volumes:
-      - ./config.json:/app/config.json:ro
       - ./data:/app/data
     restart: unless-stopped
     environment:

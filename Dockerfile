@@ -12,8 +12,10 @@ COPY . .
 RUN pnpm build
 
 FROM base AS production
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
-EXPOSE 3000
-CMD ["node", "dist/index.js"]
+COPY --from=build /app/config.example.json ./
+EXPOSE 2468
+CMD ["node", "dist/src/index.js"]
