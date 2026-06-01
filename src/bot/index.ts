@@ -73,7 +73,26 @@ export class DiscordBot {
       .replace(/<@&\d+>/g, '')
       .trim();
 
-    if (!query) return;
+    let repliedContent = '';
+    if (message.reference?.messageId) {
+      try {
+        const ref = await message.fetchReference();
+        repliedContent = ref.content
+          ?.replace(new RegExp(`<@!?${this.client.user.id}>`, 'g'), '')
+          .replace(/<@&\d+>/g, '')
+          .trim() ?? '';
+        if (repliedContent) {
+          const author = ref.author.id === this.client.user.id
+            ? 'Pharos (your previous message)'
+            : ref.author.bot ? `${ref.author.username} (bot)` : ref.author.username;
+          repliedContent = `[Replying to ${author}]:\n${repliedContent}`;
+        }
+      } catch {
+        // referenced message may be deleted or inaccessible
+      }
+    }
+
+    if (!query && !repliedContent) return;
 
     const lowerQuery = query.toLowerCase();
     const isAdminCmd = ADMIN_PREFIXES.some((p) => lowerQuery.startsWith(p));
@@ -101,6 +120,10 @@ export class DiscordBot {
       await message.reply('This channel is not linked to any project. Use `help` to see available commands.');
       return;
     }
+
+    const agentQuery = repliedContent
+      ? (query ? `${repliedContent}\n\n${query}` : repliedContent)
+      : query;
 
     const verbosity = this.getVerbosity();
     let progressMsg: DiscordMessage | null = null;
@@ -139,7 +162,7 @@ export class DiscordBot {
 
     try {
       const task = await this.agent.execute(
-        query,
+        agentQuery,
         message.channelId,
         message.author.id,
         message.id,
@@ -165,7 +188,7 @@ export class DiscordBot {
           guildId: message.guildId ?? '',
           userId: message.author.id,
           username: message.author.username,
-          query,
+          query: agentQuery,
           response: task.result,
           providerId: '',
           projectId: project.id,
