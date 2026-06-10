@@ -5,8 +5,6 @@ import { DiscordBot } from './bot/index.js';
 import { startServer } from './server/index.js';
 import { refreshSchedules } from './services/scheduler.js';
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 async function main() {
   console.log('[Pharos] Starting...');
   appendLog('info', 'Pharos starting');
